@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { costLabels, createDefaultState, dayNames, storageKey } from "@/lib/demo-data";
+import { costLabels, createDefaultState, dayNames } from "@/lib/demo-data";
 import { getCourtTimeSlots, getMonthlyMetrics, getTimeSlots, suggestPrice } from "@/lib/metrics";
+import { loadAppState, loadLegalAcceptance, loadOnboardingStatus, loadRole, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
 import type { AppState, Court, FixedCosts, Reservation, ReservationStatus, ReservationType, Role, Settings as AppSettings, ValidationRecord, ValleyRange } from "@/lib/types";
 import { addDays, cn, formatDate, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
 
@@ -84,9 +85,6 @@ const validationPayLabels: Record<ValidationRecord["willingnessToPay"], string> 
   pay_if_recovers: "Pagaria si recupera turnos"
 };
 
-const legalAcceptanceKey = "canchapro-legal-acceptance";
-const onboardingCompleteKey = "canchapro-onboarding-complete";
-
 const staffMenuGroups: Array<{ label: string; viewIds: ViewId[] }> = [
   { label: "Operacion diaria", viewIds: ["agenda", "reservations", "availability", "confirmations", "cancellations"] },
   { label: "Clientes y publicacion", viewIds: ["customers", "public"] }
@@ -129,28 +127,22 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem(storageKey);
-    const storedRole = localStorage.getItem("canchapro-role") as Role | null;
-    const legalAcceptance = localStorage.getItem(legalAcceptanceKey);
-    if (raw) {
-      try {
-        setState(normalizeState(JSON.parse(raw) as Partial<AppState>));
-      } catch {
-        setState(createDefaultState());
-      }
-    }
-    if (storedRole === "owner" || storedRole === "staff") setRole(storedRole);
+    const storedState = loadAppState();
+    const storedRole = loadRole();
+    const legalAcceptance = loadLegalAcceptance();
+    if (storedState) setState(normalizeState(storedState));
+    if (storedRole) setRole(storedRole);
     if (legalAcceptance) setLegalAccepted(true);
-    if (localStorage.getItem(onboardingCompleteKey) || raw) setOnboardingComplete(true);
+    if (loadOnboardingStatus() || storedState) setOnboardingComplete(true);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (hydrated && onboardingComplete) localStorage.setItem(storageKey, JSON.stringify(state));
+    if (hydrated && onboardingComplete) saveAppState(state);
   }, [state, hydrated, onboardingComplete]);
 
   useEffect(() => {
-    localStorage.setItem("canchapro-role", role);
+    saveRole(role);
     if (!canAccess(activeView, role)) setActiveView("agenda");
   }, [role, activeView]);
 
@@ -161,13 +153,7 @@ export default function Home() {
   const currentView = views.find((view) => view.id === activeView) ?? views[0];
 
   function acceptLegalTerms() {
-    const now = new Date().toISOString();
-    localStorage.setItem(legalAcceptanceKey, JSON.stringify({
-      acceptedTerms: true,
-      acceptedTermsAt: now,
-      acceptedPrivacy: true,
-      acceptedPrivacyAt: now
-    }));
+    saveLegalAcceptance();
     setLegalAccepted(true);
   }
 
@@ -175,16 +161,14 @@ export default function Home() {
     const normalized = normalizeState(next);
     setState(normalized);
     if (configuredRole) setRole(configuredRole);
-    localStorage.setItem(storageKey, JSON.stringify(normalized));
-    localStorage.setItem(onboardingCompleteKey, new Date().toISOString());
+    saveAppState(normalized);
+    saveOnboardingStatus();
     setOnboardingComplete(true);
   }
 
   function restoreDemoAndEnter() {
-    const demo = createDefaultState();
+    const demo = restoreDemoState();
     setState(demo);
-    localStorage.setItem(storageKey, JSON.stringify(demo));
-    localStorage.setItem(onboardingCompleteKey, new Date().toISOString());
     setOnboardingComplete(true);
   }
 

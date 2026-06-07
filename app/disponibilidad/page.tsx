@@ -2,8 +2,9 @@
 
 import { MessageCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createDefaultState, storageKey } from "@/lib/demo-data";
+import { createDefaultState } from "@/lib/demo-data";
 import { getCourtTimeSlots, suggestPrice } from "@/lib/metrics";
+import { loadAppState } from "@/lib/persistence";
 import type { AppState } from "@/lib/types";
 import { formatDate, money, toInputDate } from "@/lib/utils";
 
@@ -16,24 +17,19 @@ export default function PublicAvailabilityPage() {
     const queryDate = params.get("fecha");
     if (queryDate) setDate(queryDate);
 
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as Partial<AppState>;
-      const fallback = createDefaultState();
-      setState({
-        ...fallback,
-        ...parsed,
-        complex: { ...fallback.complex, ...parsed.complex },
-        settings: { ...fallback.settings, ...parsed.settings },
-        costs: { ...fallback.costs, ...parsed.costs },
-        courts: parsed.courts?.length ? parsed.courts : fallback.courts,
-        reservations: parsed.reservations ?? fallback.reservations,
-        publicSlotIds: parsed.publicSlotIds ?? []
-      } as AppState);
-    } catch {
-      setState(createDefaultState());
-    }
+    const parsed = loadAppState();
+    if (!parsed) return;
+    const fallback = createDefaultState();
+    setState({
+      ...fallback,
+      ...parsed,
+      complex: { ...fallback.complex, ...parsed.complex },
+      settings: { ...fallback.settings, ...parsed.settings },
+      costs: { ...fallback.costs, ...parsed.costs },
+      courts: parsed.courts?.length ? parsed.courts : fallback.courts,
+      reservations: parsed.reservations ?? fallback.reservations,
+      publicSlotIds: parsed.publicSlotIds ?? []
+    } as AppState);
   }, []);
 
   const slots = useMemo(() => {
