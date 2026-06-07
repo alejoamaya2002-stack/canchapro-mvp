@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CanchaPro MVP</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">CP</div>
+          <div>
+            <strong>CanchaPro</strong>
+            <span>Gestion comercial</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Rol activo</span>
+          <select id="roleSelect">
+            <option value="owner">Dueno / Administrador</option>
+            <option value="staff">Encargado operativo</option>
+          </select>
+        </label>
+
+        <nav id="mainNav" class="nav"></nav>
+
+        <section class="sidebar-panel">
+          <span class="eyebrow">Complejo demo</span>
+          <strong>4 canchas de futbol 5</strong>
+          <p>Agenda interna, turnos fijos, cancelaciones y control economico basico.</p>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <span id="viewEyebrow" class="eyebrow">MVP funcional</span>
+            <h1 id="viewTitle">Agenda semanal</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-button" id="seedButton" type="button">Restaurar demo</button>
+            <button class="primary-button" id="newReservationButton" type="button">Nueva reserva</button>
+          </div>
+        </header>
+
+        <section id="accessNotice" class="notice hidden">
+          Este rol no tiene acceso a la vista solicitada.
+        </section>
+
+        <section id="agendaView" class="view active">
+          <div class="toolbar">
+            <label class="field inline">
+              <span>Semana</span>
+              <input id="weekPicker" type="date">
+            </label>
+            <label class="field inline">
+              <span>Cancha</span>
+              <select id="courtFilter"></select>
+            </label>
+            <label class="field inline">
+              <span>Estado</span>
+              <select id="statusFilter">
+                <option value="all">Todos</option>
+                <option value="confirmed">Confirmadas</option>
+                <option value="cancelled">Canceladas</option>
+                <option value="free">Libres</option>
+              </select>
+            </label>
+          </div>
+          <div id="agendaGrid" class="agenda-grid"></div>
+        </section>
+
+        <section id="reservationsView" class="view">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Operacion diaria</span>
+              <h2>Reservas cargadas</h2>
+            </div>
+            <input id="reservationSearch" class="search" type="search" placeholder="Buscar cliente, telefono o cancha">
+          </div>
+          <div id="reservationsTable" class="table-card"></div>
+        </section>
+
+        <section id="availabilityView" class="view">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">WhatsApp liviano</span>
+              <h2>Disponibilidad para difundir</h2>
+            </div>
+          </div>
+          <div class="split-layout">
+            <form id="availabilityForm" class="panel">
+              <label class="field">
+                <span>Fecha</span>
+                <input id="availabilityDate" type="date">
+              </label>
+              <label class="field">
+                <span>Telefono destino opcional</span>
+                <input id="availabilityPhone" type="tel" placeholder="5492215555555">
+              </label>
+              <button class="primary-button" type="submit">Generar mensaje</button>
+            </form>
+            <div class="panel">
+              <label class="field">
+                <span>Mensaje</span>
+                <textarea id="whatsappMessage" rows="10" readonly></textarea>
+              </label>
+              <div class="button-row">
+                <button id="copyWhatsappButton" class="secondary-button" type="button">Copiar</button>
+                <a id="openWhatsappLink" class="ghost-button disabled-link" href="#" target="_blank" rel="noreferrer">Abrir WhatsApp</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="dashboardView" class="view owner-only">
+          <div class="toolbar">
+            <label class="field inline">
+              <span>Mes</span>
+              <input id="dashboardMonth" type="month">
+            </label>
+          </div>
+          <div id="kpiGrid" class="kpi-grid"></div>
+          <div class="two-column">
+            <div class="panel">
+              <h2>Ocupacion por dia</h2>
+              <div id="dayBars" class="bars"></div>
+            </div>
+            <div class="panel">
+              <h2>Horarios con oportunidad</h2>
+              <div id="opportunityList" class="stack-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="profitabilityView" class="view owner-only">
+          <div class="two-column">
+            <form id="costForm" class="panel">
+              <div class="section-head compact">
+                <div>
+                  <span class="eyebrow">Solo dueno/admin</span>
+                  <h2>Costos fijos mensuales</h2>
+                </div>
+              </div>
+              <div id="costInputs" class="cost-grid"></div>
+              <button class="primary-button" type="submit">Guardar costos</button>
+            </form>
+            <div class="panel">
+              <h2>Panel de rentabilidad</h2>
+              <div id="profitabilityMetrics" class="metric-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="settingsView" class="view owner-only">
+          <form id="settingsForm" class="panel settings-panel">
+            <div class="section-head compact">
+              <div>
+                <span class="eyebrow">Configuracion comercial</span>
+                <h2>Precios y horarios</h2>
+              </div>
+            </div>
+            <div class="settings-grid">
+              <label class="field">
+                <span>Precio base por turno</span>
+                <input id="basePrice" type="number" min="0" step="500">
+              </label>
+              <label class="field">
+                <span>Precio horario valle</span>
+                <input id="valleyPrice" type="number" min="0" step="500">
+              </label>
+              <label class="field">
+                <span>Precio fin de semana</span>
+                <input id="weekendPrice" type="number" min="0" step="500">
+              </label>
+              <label class="field">
+                <span>Hora de apertura</span>
+                <input id="openHour" type="time">
+              </label>
+              <label class="field">
+                <span>Hora de cierre</span>
+                <input id="closeHour" type="time">
+              </label>
+              <label class="field">
+                <span>Duracion del turno</span>
+                <select id="slotDuration">
+                  <option value="60">60 minutos</option>
+                  <option value="90">90 minutos</option>
+                </select>
+              </label>
+            </div>
+            <button class="primary-button" type="submit">Guardar configuracion</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="reservationDialog" class="dialog">
+      <form id="reservationForm" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <span class="eyebrow">Carga rapida</span>
+            <h2 id="reservationDialogTitle">Nueva reserva</h2>
+          </div>
+          <button id="closeDialogButton" class="icon-button" type="button" aria-label="Cerrar">x</button>
+        </div>
+
+        <input id="reservationId" type="hidden">
+        <div class="form-grid">
+          <label class="field">
+            <span>Fecha</span>
+            <input id="reservationDate" type="date" required>
+          </label>
+          <label class="field">
+            <span>Horario</span>
+            <select id="reservationTime" required></select>
+          </label>
+          <label class="field">
+            <span>Cancha</span>
+            <select id="reservationCourt" required></select>
+          </label>
+          <label class="field">
+            <span>Tipo</span>
+            <select id="reservationType">
+              <option value="occasional">Ocasional</option>
+              <option value="fixed">Turno fijo</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Cliente</span>
+            <input id="customerName" type="text" required placeholder="Nombre del organizador">
+          </label>
+          <label class="field">
+            <span>Contacto</span>
+            <input id="customerPhone" type="tel" placeholder="Telefono o WhatsApp">
+          </label>
+          <label class="field">
+            <span>Precio</span>
+            <input id="reservationPrice" type="number" min="0" step="500" required>
+          </label>
+          <label class="field">
+            <span>Estado</span>
+            <select id="reservationStatus">
+              <option value="confirmed">Confirmada</option>
+              <option value="cancelled">Cancelada</option>
+            </select>
+          </label>
+          <label class="field checkbox-field">
+            <input id="repeatFixed" type="checkbox">
+            <span>Repetir turno fijo por 4 semanas</span>
+          </label>
+          <label class="field full-span">
+            <span>Observaciones</span>
+            <textarea id="reservationNotes" rows="3"></textarea>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="deleteReservationButton" class="danger-button hidden" type="button">Eliminar</button>
+          <button class="secondary-button" type="button" id="cancelReservationButton">Cancelar</button>
+          <button class="primary-button" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
