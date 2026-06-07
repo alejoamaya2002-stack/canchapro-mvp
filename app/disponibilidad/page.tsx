@@ -17,19 +17,28 @@ export default function PublicAvailabilityPage() {
     const queryDate = params.get("fecha");
     if (queryDate) setDate(queryDate);
 
-    const parsed = loadAppState();
-    if (!parsed) return;
-    const fallback = createDefaultState();
-    setState({
-      ...fallback,
-      ...parsed,
-      complex: { ...fallback.complex, ...parsed.complex },
-      settings: { ...fallback.settings, ...parsed.settings },
-      costs: { ...fallback.costs, ...parsed.costs },
-      courts: parsed.courts?.length ? parsed.courts : fallback.courts,
-      reservations: parsed.reservations ?? fallback.reservations,
-      publicSlotIds: parsed.publicSlotIds ?? []
-    } as AppState);
+    let active = true;
+
+    async function hydrateState() {
+      const parsed = await loadAppState();
+      if (!active || !parsed) return;
+      const fallback = createDefaultState();
+      setState({
+        ...fallback,
+        ...parsed,
+        complex: { ...fallback.complex, ...parsed.complex },
+        settings: { ...fallback.settings, ...parsed.settings },
+        costs: { ...fallback.costs, ...parsed.costs },
+        courts: parsed.courts?.length ? parsed.courts : fallback.courts,
+        reservations: parsed.reservations ?? fallback.reservations,
+        publicSlotIds: parsed.publicSlotIds ?? []
+      } as AppState);
+    }
+
+    void hydrateState();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const slots = useMemo(() => {

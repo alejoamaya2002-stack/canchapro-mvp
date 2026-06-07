@@ -10,7 +10,7 @@ export type LegalAcceptance = {
 export type StoredAppState = Partial<AppState>;
 
 export type PersistenceProvider = {
-  loadAppState: () => StoredAppState | null;
+  loadAppState: () => Promise<StoredAppState | null>;
   saveAppState: (state: AppState) => void;
   restoreDemoState: () => AppState;
   clearAppState: () => void;

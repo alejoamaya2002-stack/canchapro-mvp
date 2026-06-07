@@ -1,5 +1,13 @@
 const STORAGE_KEY = "canchapro-mvp-state-v1";
 
+function generateId(prefix = "id") {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 const courts = ["Cancha 1", "Cancha 2", "Cancha 3", "Cancha 4"];
 const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 const costLabels = {
@@ -465,7 +473,7 @@ function closeDialog() {
 function saveReservationFromForm(event) {
   event.preventDefault();
   const reservation = {
-    id: editingId || crypto.randomUUID(),
+    id: editingId || generateId("reservation"),
     date: el.reservationDate.value,
     time: el.reservationTime.value,
     court: el.reservationCourt.value,
@@ -501,7 +509,7 @@ function saveReservationFromForm(event) {
       for (let week = 1; week <= 4; week += 1) {
         const nextDate = toInputDate(addDays(parseInputDate(reservation.date), week * 7));
         if (!findReservation(nextDate, reservation.time, reservation.court)) {
-          state.reservations.push({ ...reservation, id: crypto.randomUUID(), date: nextDate, createdAt: new Date().toISOString() });
+          state.reservations.push({ ...reservation, id: generateId("reservation"), date: nextDate, createdAt: new Date().toISOString() });
         }
       }
     }
@@ -676,7 +684,7 @@ function createDefaultState() {
 
 function demoReservation(weekStart, dayOffset, time, court, customerName, type, price, status) {
   return {
-    id: crypto.randomUUID(),
+    id: generateId("reservation"),
     date: toInputDate(addDays(weekStart, dayOffset)),
     time,
     court,

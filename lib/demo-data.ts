@@ -1,5 +1,5 @@
 import type { AppState, Court, FixedCosts, Reservation, Settings } from "@/lib/types";
-import { addDays, startOfWeek, toInputDate } from "@/lib/utils";
+import { addDays, generateId, startOfWeek, toInputDate } from "@/lib/utils";
 
 export const storageKey = "canchapro-next-mvp-state-v1";
 
@@ -147,7 +147,7 @@ function createMayReservations(courts: Court[]): Reservation[] {
     const occurrenceDates = datesForWeekday(date, monthEnd);
     const price = priceForDate(date, time);
     return {
-      id: crypto.randomUUID(),
+      id: generateId("reservation"),
       courtId: court.id,
       customerName,
       customerPhone: phoneForCustomer(customerName),
@@ -184,7 +184,7 @@ function createMayReservations(courts: Court[]): Reservation[] {
       const turn = new Date(`${date}T${time}:00`);
       const cancellationHours = [6, 18, 30, 42, 54, 66, 12, 36][sequence % 8];
       occasional.push({
-        id: crypto.randomUUID(),
+        id: generateId("reservation"),
         courtId: court.id,
         customerName: occasionalCustomers[sequence % occasionalCustomers.length],
         customerPhone: phoneForCustomer(occasionalCustomers[sequence % occasionalCustomers.length]),
@@ -252,7 +252,7 @@ function demoReservation(
   const effectiveStatus = type === "fixed" || (status === "confirmed" && !withinConfirmationWindow) ? "pending" : status;
   const paid = type === "occasional" && effectiveStatus === "confirmed" && turn < now;
   return {
-    id: crypto.randomUUID(),
+    id: generateId("reservation"),
     date,
     time,
     courtId,

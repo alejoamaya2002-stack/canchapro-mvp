@@ -24,7 +24,7 @@ import { costLabels, createDefaultState, dayNames } from "@/lib/demo-data";
 import { getCourtTimeSlots, getMonthlyMetrics, getTimeSlots, suggestPrice } from "@/lib/metrics";
 import { loadAppState, loadLegalAcceptance, loadOnboardingStatus, loadRole, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
 import type { AppState, Court, FixedCosts, Reservation, ReservationStatus, ReservationType, Role, Settings as AppSettings, ValidationRecord, ValleyRange } from "@/lib/types";
-import { addDays, cn, formatDate, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
+import { addDays, cn, formatDate, generateId, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
 
 type ViewId = "agenda" | "reservations" | "cancellations" | "availability" | "confirmations" | "customers" | "public" | "validation" | "dashboard" | "profitability" | "settings";
 
@@ -127,14 +127,25 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const storedState = loadAppState();
-    const storedRole = loadRole();
-    const legalAcceptance = loadLegalAcceptance();
-    if (storedState) setState(normalizeState(storedState));
-    if (storedRole) setRole(storedRole);
-    if (legalAcceptance) setLegalAccepted(true);
-    if (loadOnboardingStatus() || storedState) setOnboardingComplete(true);
-    setHydrated(true);
+    let active = true;
+
+    async function hydrateState() {
+      const storedState = await loadAppState();
+      if (!active) return;
+
+      const storedRole = loadRole();
+      const legalAcceptance = loadLegalAcceptance();
+      if (storedState) setState(normalizeState(storedState));
+      if (storedRole) setRole(storedRole);
+      if (legalAcceptance) setLegalAccepted(true);
+      if (loadOnboardingStatus() || storedState) setOnboardingComplete(true);
+      setHydrated(true);
+    }
+
+    void hydrateState();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -212,7 +223,7 @@ export default function Home() {
     if (!draft) return;
 
     const reservation: Reservation = {
-      id: draft.id ?? crypto.randomUUID(),
+      id: draft.id ?? generateId("reservation"),
       courtId: draft.courtId,
       customerName: draft.customerName.trim(),
       customerPhone: draft.customerPhone.trim(),
@@ -253,7 +264,7 @@ export default function Home() {
     if (cancelled?.type === "fixed") {
       const cancelledOccurrence: Reservation = {
         ...cancelled,
-        id: crypto.randomUUID(),
+        id: generateId("reservation"),
         date: occurrenceDate,
         type: "occasional",
         status: "cancelled",
@@ -603,7 +614,7 @@ function InitialSetupWizard(props: { onComplete: (state: AppState, role: Role | 
     const date = data.reservationMode === "fixed" ? nextDateForWeekday(fixedDay, reservationDraft.time) : reservationDraft.date;
     const type: ReservationType = data.reservationMode === "fixed" ? "fixed" : reservationDraft.type;
     const candidate: Reservation = {
-      id: crypto.randomUUID(),
+      id: generateId("reservation"),
       date,
       time: reservationDraft.time,
       courtId: reservationDraft.courtId,
@@ -661,7 +672,7 @@ function InitialSetupWizard(props: { onComplete: (state: AppState, role: Role | 
     };
     const state: AppState = {
       complex: {
-        id: crypto.randomUUID(),
+        id: generateId("complex"),
         name: data.complexName.trim(),
         address: data.address.trim(),
         phone: data.phone.trim(),
@@ -752,7 +763,7 @@ function InitialSetupWizard(props: { onComplete: (state: AppState, role: Role | 
                   <Field label="Hasta"><input className={inputClass} type="time" value={range.to} onChange={(event) => patchData({ valleyRanges: data.valleyRanges.map((item) => item.id === range.id ? { ...item, to: event.target.value } : item) })} /></Field>
                   <Field label="Precio valle"><input className={inputClass} type="number" min="1" value={range.price || ""} onChange={(event) => patchData({ valleyRanges: data.valleyRanges.map((item) => item.id === range.id ? { ...item, price: Number(event.target.value || 0) } : item) })} /></Field>
                 </div>)}
-                <button className="min-h-11 justify-self-start rounded-lg border border-line px-4 text-sm font-black" type="button" onClick={() => patchData({ valleyRanges: [...data.valleyRanges, { id: crypto.randomUUID(), days: [1, 2, 3, 4, 5], from: data.openHour, to: "19:00", price: data.basePrice }] })}>Agregar rango valle</button>
+                <button className="min-h-11 justify-self-start rounded-lg border border-line px-4 text-sm font-black" type="button" onClick={() => patchData({ valleyRanges: [...data.valleyRanges, { id: generateId("valley"), days: [1, 2, 3, 4, 5], from: data.openHour, to: "19:00", price: data.basePrice }] })}>Agregar rango valle</button>
               </> : <p className="rounded-lg bg-lime-50 p-4 text-sm text-slate-700">CanchaPro podra sugerir horarios valle a partir de la ocupacion registrada con el uso.</p>}
             </div>
           </WizardSection>
@@ -817,7 +828,7 @@ function SummaryItem(props: { label: string; value: string }) {
 }
 
 function newSetupCourt(index: number, openHour: string, closeHour: string, slotDuration: number): Court {
-  return { id: crypto.randomUUID(), name: `Cancha ${index}`, type: "futbol5", roofed: false, active: true, openHour, closeHour, slotStepMinutes: slotDuration };
+  return { id: generateId("court"), name: `Cancha ${index}`, type: "futbol5", roofed: false, active: true, openHour, closeHour, slotStepMinutes: slotDuration };
 }
 
 function onboardingSuggestedPrice(data: OnboardingData, date: string, time: string, courtId: string) {
@@ -1419,7 +1430,7 @@ function ValidationView(props: { state: AppState; setState: (state: AppState) =>
   function saveValidation(event: FormEvent) {
     event.preventDefault();
     const record: ValidationRecord = {
-      id: crypto.randomUUID(),
+      id: generateId("validation"),
       ...draft,
       createdAt: new Date().toISOString()
     };
@@ -1477,7 +1488,7 @@ function SettingsView(props: { state: AppState; setState: (state: AppState) => v
   const [complex, setComplex] = useState(props.state.complex);
   function addCourt() {
     setCourts([...courts, {
-      id: crypto.randomUUID(),
+      id: generateId("court"),
       name: `Cancha ${courts.length + 1}`,
       type: "futbol5",
       active: true,
@@ -1524,7 +1535,7 @@ function SettingsView(props: { state: AppState; setState: (state: AppState) => v
       <div className="mt-5 border-t border-line pt-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div><h3 className="font-black">Rangos de horario valle</h3><p className="text-sm text-slate-600">Opcional. El precio del rango se aplica automaticamente.</p></div>
-          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black" type="button" onClick={() => setSettings({ ...settings, valleyRanges: [...(settings.valleyRanges ?? []), { id: crypto.randomUUID(), days: [1, 2, 3, 4, 5], from: settings.openHour, to: "19:00", price: settings.valleyPrice }] })}>Agregar rango</button>
+          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black" type="button" onClick={() => setSettings({ ...settings, valleyRanges: [...(settings.valleyRanges ?? []), { id: generateId("valley"), days: [1, 2, 3, 4, 5], from: settings.openHour, to: "19:00", price: settings.valleyPrice }] })}>Agregar rango</button>
         </div>
         <div className="mt-3 grid gap-3">
           {(settings.valleyRanges ?? []).map((range) => <div key={range.id} className="grid gap-3 rounded-lg border border-line bg-slate-50 p-3 sm:grid-cols-4">
