@@ -1943,11 +1943,9 @@ function getCustomers(state: AppState) {
     };
     current.total += 1;
     current.reservations.push(reservation);
-    if (reservation.status === "confirmed") {
-      current.confirmed += 1;
-      current.revenue += reservation.price;
-    }
-    if (reservation.status === "cancelled") current.cancelled += 1;
+    current.confirmed += reservation.confirmedDates?.length ?? (reservation.status === "confirmed" ? 1 : 0);
+    current.revenue += (reservation.paidDates?.length ?? (reservation.status === "confirmed" ? 1 : 0)) * reservation.price;
+    current.cancelled += reservation.cancelledDates?.length ?? (reservation.status === "cancelled" ? 1 : 0);
     if (reservation.date > current.lastReservation) current.lastReservation = reservation.date;
     grouped.set(key, current);
   });
