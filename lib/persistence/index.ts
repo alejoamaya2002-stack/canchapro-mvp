@@ -1,11 +1,13 @@
 import type { AppState } from "@/lib/types";
 import type { StoredAppState } from "@/lib/persistence/types";
+import { createEmptyInitialState } from "@/lib/demo-data";
 import {
   clearAppState as clearLocalAppState,
   loadAppState as loadLocalAppState,
   loadLegalAcceptance,
   loadOnboardingStatus,
   loadRole,
+  markOnboardingIncomplete,
   restoreDemoState as restoreLocalDemoState,
   saveAppState as saveLocalAppState,
   saveLegalAcceptance,
@@ -15,7 +17,7 @@ import {
 import { isSupabaseConfigured, loadRemoteAppState, restoreRemoteDemoState, saveRemoteAppState } from "@/lib/persistence/supabase-store";
 
 export * from "@/lib/persistence/types";
-export { isSupabaseConfigured, loadLegalAcceptance, loadOnboardingStatus, loadRole, saveLegalAcceptance, saveOnboardingStatus, saveRole };
+export { isSupabaseConfigured, loadLegalAcceptance, loadOnboardingStatus, loadRole, markOnboardingIncomplete, saveLegalAcceptance, saveOnboardingStatus, saveRole };
 
 export async function loadAppState(): Promise<StoredAppState | null> {
   const localState = loadLocalAppState();
@@ -53,6 +55,14 @@ export function restoreDemoState() {
 
 export function clearAppState() {
   clearLocalAppState();
+}
+
+export function resetForRealPilot() {
+  const emptyState = createEmptyInitialState();
+  saveLocalAppState(emptyState);
+  markOnboardingIncomplete();
+  if (isSupabaseConfigured()) void saveRemoteSafely(emptyState);
+  return emptyState;
 }
 
 async function saveRemoteSafely(state: AppState) {

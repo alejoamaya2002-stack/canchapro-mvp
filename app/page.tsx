@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { costLabels, createDefaultState, dayNames } from "@/lib/demo-data";
+import { costLabels, createDefaultState, dayNames, hasInitialConfiguration } from "@/lib/demo-data";
 import { getCourtTimeSlots, getMonthlyMetrics, getTimeSlots, suggestPrice } from "@/lib/metrics";
-import { loadAppState, loadLegalAcceptance, loadOnboardingStatus, loadRole, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
+import { loadAppState, loadLegalAcceptance, loadRole, resetForRealPilot, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
 import type { AppState, Court, FixedCosts, Reservation, ReservationStatus, ReservationType, Role, Settings as AppSettings, ValidationRecord, ValleyRange } from "@/lib/types";
 import { addDays, cn, formatDate, generateId, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
 
@@ -125,6 +125,7 @@ export default function Home() {
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [showCleanConfirm, setShowCleanConfirm] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -135,10 +136,11 @@ export default function Home() {
 
       const storedRole = loadRole();
       const legalAcceptance = loadLegalAcceptance();
-      if (storedState) setState(normalizeState(storedState));
+      const setupComplete = hasInitialConfiguration(storedState);
+      if (storedState) setState(setupComplete ? normalizeState(storedState) : createDefaultState());
       if (storedRole) setRole(storedRole);
       if (legalAcceptance) setLegalAccepted(true);
-      if (loadOnboardingStatus() || storedState) setOnboardingComplete(true);
+      setOnboardingComplete(setupComplete);
       setHydrated(true);
     }
 
@@ -181,6 +183,21 @@ export default function Home() {
     const demo = restoreDemoState();
     setState(demo);
     setOnboardingComplete(true);
+  }
+
+  function loadAcademicDemo() {
+    restoreDemoAndEnter();
+    notify("Demo academico cargado.");
+  }
+
+  function prepareRealTrial() {
+    const emptyState = resetForRealPilot();
+    setState(emptyState);
+    setOnboardingComplete(false);
+    setDraft(null);
+    setActiveView("agenda");
+    setShowCleanConfirm(false);
+    notify("Listo para configurar una prueba real desde cero.");
   }
 
   function notify(message: string) {
@@ -385,9 +402,13 @@ export default function Home() {
               <h1 className="mt-1 text-2xl font-black tracking-normal text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.55)] sm:text-3xl">{currentView.label}</h1>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-black text-field-700 shadow-soft" type="button" onClick={() => updateState(createDefaultState())}>
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-black text-field-700 shadow-soft" type="button" onClick={loadAcademicDemo}>
                 <RefreshCw size={17} />
-                Restaurar demo
+                Cargar demo academico
+              </button>
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-black text-field-700 shadow-soft" type="button" onClick={() => setShowCleanConfirm(true)}>
+                <Trash2 size={17} />
+                Preparar prueba real
               </button>
               <button className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-lime-400 px-4 text-sm font-black text-field-900 shadow-soft" type="button" onClick={() => openDraft()}>
                 <Plus size={18} />
@@ -492,8 +513,36 @@ export default function Home() {
         />
       )}
 
+      {showCleanConfirm && (
+        <CleanOperationalDataModal
+          onCancel={() => setShowCleanConfirm(false)}
+          onConfirm={prepareRealTrial}
+        />
+      )}
+
       {toast && <div className="fixed bottom-5 right-5 max-w-sm rounded-lg bg-field-900 px-4 py-3 text-sm font-bold text-white shadow-soft">{toast}</div>}
     </main>
+  );
+}
+
+function CleanOperationalDataModal(props: { onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-20 grid place-items-center bg-field-900/55 p-4">
+      <section className="w-full max-w-lg rounded-lg bg-white p-5 text-field-900 shadow-soft">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-500">Prueba real</span>
+        <h2 className="mt-1 text-xl font-black">Limpiar datos para prueba real</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Esto eliminara reservas, cancelaciones, horarios publicados, canchas, precios, costos y configuracion anterior para comenzar una prueba real desde cero. Queres continuar?
+        </p>
+        <p className="mt-3 rounded-lg bg-lime-50 p-3 text-sm font-bold text-lime-950">
+          Usar esta opcion antes de entregar la app a un complejo para que vuelva a cargar sus datos reales en la configuracion inicial.
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onCancel}>Cancelar</button>
+          <button className="min-h-11 rounded-lg bg-red-700 px-4 text-sm font-black text-white" type="button" onClick={props.onConfirm}>Preparar prueba real</button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -701,7 +750,7 @@ function InitialSetupWizard(props: { onComplete: (state: AppState, role: Role | 
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">Configuracion inicial del complejo</h1>
             <p className="mt-2 text-sm text-slate-600">Carga los datos basicos para dejar CanchaPro listo para operar.</p>
           </div>
-          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onUseDemo}>Usar datos demo</button>
+          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onUseDemo}>Cargar demo academico</button>
         </header>
         <div className="mt-5 grid grid-cols-5 gap-2" aria-label={`Paso ${step} de 5`}>
           {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-2 rounded-full transition-colors" style={{ backgroundColor: item <= step ? "#a3e635" : "#e2e8f0" }} />)}
@@ -810,7 +859,7 @@ function InitialSetupWizard(props: { onComplete: (state: AppState, role: Role | 
         <footer className="mt-6 flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-between">
           <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black disabled:opacity-30" type="button" disabled={step === 1} onClick={() => { setError(""); setStep(step - 1); }}>Volver</button>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onUseDemo}>Usar datos demo</button>
+            <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onUseDemo}>Cargar demo academico</button>
             {step < 5 ? <button className="min-h-11 rounded-lg bg-lime-400 px-5 text-sm font-black text-field-900" type="button" onClick={goNext}>Continuar</button> : <button className="min-h-11 rounded-lg bg-field-700 px-5 text-sm font-black text-white" type="button" onClick={finish}>Empezar a usar CanchaPro</button>}
           </div>
         </footer>

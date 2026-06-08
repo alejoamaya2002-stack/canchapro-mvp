@@ -20,4 +20,5 @@ export type PersistenceProvider = {
   saveLegalAcceptance: (acceptance?: LegalAcceptance) => LegalAcceptance;
   loadOnboardingStatus: () => boolean;
   saveOnboardingStatus: (completedAt?: string) => string;
+  markOnboardingIncomplete: () => void;
 };

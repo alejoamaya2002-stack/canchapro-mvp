@@ -87,3 +87,8 @@ export function saveOnboardingStatus(completedAt = new Date().toISOString()) {
   }
   return completedAt;
 }
+
+export function markOnboardingIncomplete() {
+  if (!canUseLocalStorage()) return;
+  window.localStorage.removeItem(onboardingCompleteKey);
+}

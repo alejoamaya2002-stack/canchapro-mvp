@@ -121,6 +121,46 @@ export function createDefaultState(): AppState {
   };
 }
 
+export function createEmptyInitialState(): AppState {
+  return {
+    complex: {
+      id: generateId("complex"),
+      name: "",
+      address: "",
+      phone: ""
+    },
+    courts: [],
+    settings: {
+      basePrice: 0,
+      valleyPrice: 0,
+      weekendPrice: 0,
+      openHour: "18:00",
+      closeHour: "00:00",
+      slotDuration: 60,
+      confirmationLeadHours: 0,
+      openDays: [1, 2, 3, 4, 5, 6, 0],
+      valleyRanges: []
+    },
+    costs: {
+      electricity: 0,
+      gas: 0,
+      water: 0,
+      salaries: 0,
+      rent: 0,
+      taxes: 0,
+      maintenance: 0,
+      other: 0
+    },
+    reservations: [],
+    publicSlotIds: [],
+    validationRecords: []
+  };
+}
+
+export function hasInitialConfiguration(state: Partial<AppState> | null | undefined) {
+  return Boolean(state?.complex?.name?.trim() && state.courts?.length && state.settings?.basePrice);
+}
+
 function createMayReservations(courts: Court[]): Reservation[] {
   const monthStart = new Date(2026, 4, 1);
   const monthEnd = "2026-05-31";
