@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
+import type { AppState, Reservation } from "@/lib/types";
 
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
@@ -47,6 +48,24 @@ export function parseInputDate(value: string) {
 export function formatDate(dateText: string) {
   const date = parseInputDate(dateText);
   return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
+export function buildReservationConfirmationMessage(state: Pick<AppState, "complex" | "courts">, reservation: Reservation) {
+  const court = state.courts.find((item) => item.id === reservation.courtId)?.name ?? "la cancha";
+  const location = state.complex.address.trim() ? `${state.complex.name}, ${state.complex.address.trim()}` : state.complex.name;
+  const readableDate = new Intl.DateTimeFormat("es-AR", { weekday: "long" }).format(parseInputDate(reservation.date));
+  const duration = reservation.durationMinutes ? `\nDuracion: ${reservation.durationMinutes} minutos.` : "";
+
+  return `Hola ${reservation.customerName}. Tu turno quedo reservado en ${location}, para el dia ${readableDate} ${formatDate(reservation.date)} a las ${reservation.time}, en ${court}.
+${duration}
+El valor del turno es ${money(reservation.price)}. Se abona sin excepcion antes de ingresar a jugar.
+
+Ante cualquier cambio o cancelacion, por favor avisar con anticipacion. Gracias.`;
+}
+
+export function buildWhatsAppUrl(message: string, phone = "") {
+  const destination = phone.trim().replace(/\D/g, "");
+  return `https://wa.me/${destination}?text=${encodeURIComponent(message)}`;
 }
 
 export function addDays(date: Date, days: number) {

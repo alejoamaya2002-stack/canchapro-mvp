@@ -24,7 +24,7 @@ import { costLabels, createDefaultState, dayNames, hasInitialConfiguration } fro
 import { getCourtTimeSlots, getMonthlyMetrics, getTimeSlots, suggestPrice } from "@/lib/metrics";
 import { loadAppState, loadLegalAcceptance, loadRole, resetForRealPilot, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
 import type { AppState, Court, FixedCosts, Reservation, ReservationStatus, ReservationType, Role, Settings as AppSettings, ValidationRecord, ValleyRange } from "@/lib/types";
-import { addDays, cn, formatDate, generateId, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
+import { addDays, buildReservationConfirmationMessage, buildWhatsAppUrl, cn, formatDate, generateId, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
 
 type ViewId = "agenda" | "reservations" | "cancellations" | "availability" | "confirmations" | "customers" | "public" | "validation" | "dashboard" | "profitability" | "settings";
 
@@ -121,6 +121,7 @@ export default function Home() {
   const [availabilityPhone, setAvailabilityPhone] = useState("");
   const [publicDate, setPublicDate] = useState(toInputDate(new Date()));
   const [draft, setDraft] = useState<ReservationDraft | null>(null);
+  const [confirmationReservation, setConfirmationReservation] = useState<Reservation | null>(null);
   const [toast, setToast] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -195,6 +196,7 @@ export default function Home() {
     setState(emptyState);
     setOnboardingComplete(false);
     setDraft(null);
+    setConfirmationReservation(null);
     setActiveView("agenda");
     setShowCleanConfirm(false);
     notify("Listo para configurar una prueba real desde cero.");
@@ -238,6 +240,7 @@ export default function Home() {
   function saveReservation(event: FormEvent) {
     event.preventDefault();
     if (!draft) return;
+    const isNewReservation = !draft.id;
 
     const reservation: Reservation = {
       id: draft.id ?? generateId("reservation"),
@@ -266,6 +269,7 @@ export default function Home() {
     const withoutCurrent = state.reservations.filter((item) => item.id !== reservation.id);
     updateState({ ...state, reservations: [...withoutCurrent, reservation] });
     setDraft(null);
+    if (isNewReservation && reservation.status !== "cancelled") setConfirmationReservation(reservation);
     notify("Reserva guardada.");
   }
 
@@ -510,6 +514,17 @@ export default function Home() {
           cancelReservation={cancelReservation}
           goToCancellations={goToCancellations}
           markPaid={markReservationPaid}
+          complex={state.complex}
+          notify={notify}
+        />
+      )}
+
+      {confirmationReservation && (
+        <ReservationConfirmationModal
+          state={state}
+          reservation={confirmationReservation}
+          notify={notify}
+          onClose={() => setConfirmationReservation(null)}
         />
       )}
 
@@ -1633,7 +1648,45 @@ function SettingsView(props: { state: AppState; setState: (state: AppState) => v
   );
 }
 
-function ReservationModal(props: { draft: ReservationDraft; setDraft: (draft: ReservationDraft | null) => void; courts: AppState["courts"]; slots: string[]; settings: AppState["settings"]; reservations: Reservation[]; saveReservation: (event: FormEvent) => void; deleteReservation: () => void; cancelReservation: (reservationId: string, occurrenceDate: string, reason: string, lastMinute: boolean) => void; goToCancellations: () => void; markPaid: (reservationId: string, occurrenceDate: string) => void }) {
+function ReservationConfirmationModal(props: { state: AppState; reservation: Reservation; notify: (message: string) => void; onClose: () => void }) {
+  const message = buildReservationConfirmationMessage(props.state, props.reservation);
+  const whatsappHref = buildWhatsAppUrl(message, props.reservation.customerPhone);
+
+  function copyConfirmation() {
+    navigator.clipboard?.writeText(message).then(
+      () => props.notify("Mensaje de confirmacion copiado."),
+      () => props.notify("No se pudo copiar automaticamente.")
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-20 grid place-items-center bg-field-900/55 p-4">
+      <section className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-5 text-field-900 shadow-soft">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wide text-slate-500">Reserva guardada</span>
+            <h2 className="mt-1 text-xl font-black">Mensaje de confirmacion</h2>
+          </div>
+          <button className="rounded-lg border border-line px-3 py-2 font-black" type="button" onClick={props.onClose}>x</button>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">La reserva ya quedo registrada. Podes copiar el mensaje o abrir WhatsApp para enviarlo manualmente.</p>
+        <textarea className="mt-4 min-h-52 w-full rounded-lg border border-line px-3 py-2 text-sm" readOnly value={message} />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-field-700 px-4 text-sm font-black text-white" type="button" onClick={copyConfirmation}><Copy size={17} />Copiar confirmacion</button>
+          {props.reservation.customerPhone.trim() ? (
+            <a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-4 text-sm font-black text-field-700" href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle size={17} />Abrir WhatsApp</a>
+          ) : (
+            <span className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm font-bold text-slate-500">Carga un telefono para abrir WhatsApp</span>
+          )}
+          <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onClose}>Cerrar</button>
+        </div>
+        <p className="mt-3 text-sm font-bold text-slate-500">WhatsApp es un servicio externo a CanchaPro. El mensaje no se envia automaticamente.</p>
+      </section>
+    </div>
+  );
+}
+
+function ReservationModal(props: { draft: ReservationDraft; setDraft: (draft: ReservationDraft | null) => void; courts: AppState["courts"]; complex: AppState["complex"]; slots: string[]; settings: AppState["settings"]; reservations: Reservation[]; saveReservation: (event: FormEvent) => void; deleteReservation: () => void; cancelReservation: (reservationId: string, occurrenceDate: string, reason: string, lastMinute: boolean) => void; goToCancellations: () => void; markPaid: (reservationId: string, occurrenceDate: string) => void; notify: (message: string) => void }) {
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [lastMinute, setLastMinute] = useState(false);
@@ -1667,6 +1720,24 @@ function ReservationModal(props: { draft: ReservationDraft; setDraft: (draft: Re
   const canConfirmNow = isWithinConfirmationWindow(props.draft.date, selectedTime || props.draft.time, props.settings.confirmationLeadHours);
   const sourceReservation = props.reservations.find((reservation) => reservation.id === props.draft.id);
   const paid = sourceReservation ? isReservationPaid(sourceReservation, props.draft.date) : false;
+  const confirmationData = sourceReservation ? {
+    ...sourceReservation,
+    courtId: props.draft.courtId,
+    customerName: props.draft.customerName,
+    customerPhone: props.draft.customerPhone,
+    date: props.draft.date,
+    time: props.draft.time,
+    price: props.draft.price,
+    durationMinutes: props.draft.durationMinutes
+  } : null;
+  const confirmationMessage = confirmationData ? buildReservationConfirmationMessage({ complex: props.complex, courts: props.courts }, confirmationData) : "";
+  const whatsappHref = confirmationData ? buildWhatsAppUrl(confirmationMessage, confirmationData.customerPhone) : "";
+  function copyConfirmation() {
+    navigator.clipboard?.writeText(confirmationMessage).then(
+      () => props.notify("Mensaje de confirmacion copiado."),
+      () => props.notify("No se pudo copiar automaticamente.")
+    );
+  }
   useEffect(() => {
     if ((selectedTime && selectedTime !== props.draft.time) || (selectedCourtId && selectedCourtId !== props.draft.courtId)) {
       props.setDraft({ ...props.draft, time: selectedTime || props.draft.time, courtId: selectedCourtId || props.draft.courtId, price: suggestPrice(props.draft.date, selectedTime || props.draft.time, props.settings) });
@@ -1699,6 +1770,21 @@ function ReservationModal(props: { draft: ReservationDraft; setDraft: (draft: Re
         )}
         {!canConfirmNow && props.draft.status !== "cancelled" && (
           <p className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm font-bold text-yellow-900">Este turno queda pendiente porque todavia esta fuera de la ventana de confirmacion configurada.</p>
+        )}
+        {confirmationData && props.draft.status !== "cancelled" && (
+          <section className="mt-4 rounded-lg border border-line bg-slate-50 p-4">
+            <h3 className="font-black text-field-900">Mensaje de confirmacion</h3>
+            <p className="mt-1 text-sm text-slate-600">Se genera con los datos actuales de esta reserva. WhatsApp es un servicio externo a CanchaPro.</p>
+            <textarea className="mt-3 min-h-40 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm" readOnly value={confirmationMessage} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-field-700 px-4 text-sm font-black text-white" type="button" onClick={copyConfirmation}><Copy size={17} />Copiar confirmacion</button>
+              {confirmationData.customerPhone.trim() ? (
+                <a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-black text-field-700" href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle size={17} />Abrir WhatsApp</a>
+              ) : (
+                <span className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-bold text-slate-500">Carga un telefono para abrir WhatsApp</span>
+              )}
+            </div>
+          </section>
         )}
         {isEditingCancelled && (
           <div className="mt-4 rounded-lg border border-lime-200 bg-lime-50 p-4">
