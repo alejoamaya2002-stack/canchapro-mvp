@@ -653,11 +653,15 @@ function AccessBlocked(props: { message: string; onLogout: () => Promise<void> }
 }
 
 function AdminPlaceholder(props: { profile: AuthProfile; onLogout: () => Promise<void> }) {
+  useEffect(() => {
+    window.location.replace("/admin");
+  }, []);
+
   return (
     <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
       <section className="w-full max-w-xl rounded-lg bg-white p-6 text-field-900 shadow-soft">
         <span className="text-xs font-black uppercase tracking-wide text-lime-700">Administrador general</span>
-        <h1 className="mt-1 text-2xl font-black">Panel admin pendiente de implementacion</h1>
+        <h1 className="mt-1 text-2xl font-black">Abriendo panel administrador</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">Sesion iniciada como {props.profile.email}. Este usuario no carga datos de ningun complejo.</p>
         <button className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onLogout}><LogOut size={17} />Cerrar sesion</button>
       </section>

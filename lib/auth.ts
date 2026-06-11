@@ -10,6 +10,23 @@ export type AuthProfile = {
   status: "active" | "disabled";
 };
 
+function isInvalidRefreshTokenError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("invalid refresh token") || message.includes("refresh token not found");
+}
+
+async function clearInvalidSession() {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return;
+
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // The invalid session may already have been removed by Supabase.
+  }
+}
+
 export async function signInWithPassword(email: string, password: string) {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase no esta configurado.");
@@ -21,16 +38,35 @@ export async function signInWithPassword(email: string, password: string) {
 export async function signOut() {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error && !isInvalidRefreshTokenError(error)) throw error;
+    if (error) await clearInvalidSession();
+  } catch (error) {
+    if (!isInvalidRefreshTokenError(error)) throw error;
+    await clearInvalidSession();
+  }
 }
 
 export async function loadCurrentProfile(): Promise<AuthProfile | null> {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase no esta configurado.");
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
+  let sessionResult;
+  try {
+    sessionResult = await supabase.auth.getSession();
+  } catch (error) {
+    if (!isInvalidRefreshTokenError(error)) throw error;
+    await clearInvalidSession();
+    return null;
+  }
+
+  const { data: { session }, error: sessionError } = sessionResult;
+  if (sessionError) {
+    if (!isInvalidRefreshTokenError(sessionError)) throw sessionError;
+    await clearInvalidSession();
+    return null;
+  }
   if (!session?.user) return null;
 
   const { data, error } = await supabase
