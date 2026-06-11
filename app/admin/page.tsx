@@ -119,8 +119,9 @@ export default function AdminPage() {
   );
 
   async function logout() {
+    setProfile(null);
     await signOut();
-    window.location.replace("/admin");
+    window.location.href = "/";
   }
 
   if (!authReady) return <StatusScreen title="Verificando acceso" message="Validando la sesion administrativa." />;
