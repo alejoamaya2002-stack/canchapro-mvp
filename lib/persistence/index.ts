@@ -6,33 +6,31 @@ import {
   loadAppState as loadLocalAppState,
   loadLegalAcceptance,
   loadOnboardingStatus,
-  loadRole,
   markOnboardingIncomplete,
   restoreDemoState as restoreLocalDemoState,
   saveAppState as saveLocalAppState,
   saveLegalAcceptance,
-  saveOnboardingStatus,
-  saveRole
+  saveOnboardingStatus
 } from "@/lib/persistence/local-store";
 import { isSupabaseConfigured, loadRemoteAppState, restoreRemoteDemoState, saveRemoteAppState } from "@/lib/persistence/supabase-store";
 
 export * from "@/lib/persistence/types";
-export { isSupabaseConfigured, loadLegalAcceptance, loadOnboardingStatus, loadRole, markOnboardingIncomplete, saveLegalAcceptance, saveOnboardingStatus, saveRole };
+export { isSupabaseConfigured, loadLegalAcceptance, loadOnboardingStatus, markOnboardingIncomplete, saveLegalAcceptance, saveOnboardingStatus };
 
-export async function loadAppState(): Promise<StoredAppState | null> {
-  const localState = loadLocalAppState();
+export async function loadAppState(complexId?: string): Promise<StoredAppState | null> {
+  const localState = loadLocalAppState(complexId);
 
-  if (!isSupabaseConfigured()) return localState;
+  if (!isSupabaseConfigured() || !complexId) return localState;
 
   try {
-    const remoteState = await loadRemoteAppState();
+    const remoteState = await loadRemoteAppState(complexId);
     if (remoteState) {
-      saveLocalAppState(remoteState as AppState);
+      saveLocalAppState(remoteState as AppState, complexId);
       return remoteState;
     }
 
     if (localState) {
-      void saveRemoteSafely(localState as AppState);
+      void saveRemoteSafely(localState as AppState, complexId);
       return localState;
     }
   } catch {
@@ -42,40 +40,40 @@ export async function loadAppState(): Promise<StoredAppState | null> {
   return localState;
 }
 
-export function saveAppState(state: AppState) {
-  saveLocalAppState(state);
-  if (isSupabaseConfigured()) void saveRemoteSafely(state);
+export function saveAppState(state: AppState, complexId?: string) {
+  saveLocalAppState(state, complexId);
+  if (isSupabaseConfigured() && complexId) void saveRemoteSafely(state, complexId);
 }
 
-export function restoreDemoState() {
-  const demo = restoreLocalDemoState();
-  if (isSupabaseConfigured()) void restoreRemoteSafely(demo);
+export function restoreDemoState(complexId?: string) {
+  const demo = restoreLocalDemoState(complexId);
+  if (isSupabaseConfigured() && complexId) void restoreRemoteSafely(demo, complexId);
   return demo;
 }
 
-export function clearAppState() {
-  clearLocalAppState();
+export function clearAppState(complexId?: string) {
+  clearLocalAppState(complexId);
 }
 
-export function resetForRealPilot() {
+export function resetForRealPilot(complexId?: string) {
   const emptyState = createEmptyInitialState();
-  saveLocalAppState(emptyState);
-  markOnboardingIncomplete();
-  if (isSupabaseConfigured()) void saveRemoteSafely(emptyState);
+  saveLocalAppState(emptyState, complexId);
+  markOnboardingIncomplete(complexId);
+  if (isSupabaseConfigured() && complexId) void saveRemoteSafely(emptyState, complexId);
   return emptyState;
 }
 
-async function saveRemoteSafely(state: AppState) {
+async function saveRemoteSafely(state: AppState, complexId: string) {
   try {
-    await saveRemoteAppState(state);
+    await saveRemoteAppState(state, complexId);
   } catch {
     // localStorage remains the operational fallback for the MVP pilot.
   }
 }
 
-async function restoreRemoteSafely(state: AppState) {
+async function restoreRemoteSafely(state: AppState, complexId: string) {
   try {
-    await restoreRemoteDemoState(state);
+    await restoreRemoteDemoState(state, complexId);
   } catch {
     // localStorage remains the operational fallback for the MVP pilot.
   }

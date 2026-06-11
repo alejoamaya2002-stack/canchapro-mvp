@@ -1,4 +1,4 @@
-import type { AppState, Role } from "@/lib/types";
+import type { AppState } from "@/lib/types";
 
 export type LegalAcceptance = {
   acceptedTerms: boolean;
@@ -10,15 +10,13 @@ export type LegalAcceptance = {
 export type StoredAppState = Partial<AppState>;
 
 export type PersistenceProvider = {
-  loadAppState: () => Promise<StoredAppState | null>;
-  saveAppState: (state: AppState) => void;
-  restoreDemoState: () => AppState;
-  clearAppState: () => void;
-  loadRole: () => Role | null;
-  saveRole: (role: Role) => void;
+  loadAppState: (complexId?: string) => Promise<StoredAppState | null>;
+  saveAppState: (state: AppState, complexId?: string) => void;
+  restoreDemoState: (complexId?: string) => AppState;
+  clearAppState: (complexId?: string) => void;
   loadLegalAcceptance: () => LegalAcceptance | null;
   saveLegalAcceptance: (acceptance?: LegalAcceptance) => LegalAcceptance;
-  loadOnboardingStatus: () => boolean;
-  saveOnboardingStatus: (completedAt?: string) => string;
-  markOnboardingIncomplete: () => void;
+  loadOnboardingStatus: (complexId?: string) => boolean;
+  saveOnboardingStatus: (complexId?: string, completedAt?: string) => string;
+  markOnboardingIncomplete: (complexId?: string) => void;
 };

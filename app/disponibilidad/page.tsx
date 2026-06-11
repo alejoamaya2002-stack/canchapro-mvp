@@ -15,12 +15,13 @@ export default function PublicAvailabilityPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const queryDate = params.get("fecha");
+    const queryComplexId = params.get("complejo") ?? undefined;
     if (queryDate) setDate(queryDate);
 
     let active = true;
 
     async function hydrateState() {
-      const parsed = await loadAppState();
+      const parsed = await loadAppState(queryComplexId);
       if (!active || !parsed) return;
       const fallback = createDefaultState();
       setState({

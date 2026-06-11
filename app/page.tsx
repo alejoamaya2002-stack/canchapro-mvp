@@ -14,15 +14,17 @@ import {
   ShieldCheck,
   Share2,
   ClipboardCheck,
+  LogOut,
   Trash2,
   UsersRound,
   UserRound
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { costLabels, createDefaultState, dayNames, hasInitialConfiguration } from "@/lib/demo-data";
+import { loadCurrentProfile, signInWithPassword, signOut, type AuthProfile } from "@/lib/auth";
+import { costLabels, createDefaultState, createEmptyInitialState, dayNames, hasInitialConfiguration } from "@/lib/demo-data";
 import { getCourtTimeSlots, getMonthlyMetrics, getTimeSlots, suggestPrice } from "@/lib/metrics";
-import { loadAppState, loadLegalAcceptance, loadRole, resetForRealPilot, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus, saveRole } from "@/lib/persistence";
+import { loadAppState, loadLegalAcceptance, resetForRealPilot, restoreDemoState, saveAppState, saveLegalAcceptance, saveOnboardingStatus } from "@/lib/persistence";
 import type { AppState, Court, FixedCosts, Reservation, ReservationStatus, ReservationType, Role, Settings as AppSettings, ValidationRecord, ValleyRange } from "@/lib/types";
 import { addDays, buildReservationConfirmationMessage, buildWhatsAppUrl, cn, formatDate, generateId, money, normalize, parseInputDate, percent, startOfWeek, toInputDate, toMonthInput } from "@/lib/utils";
 
@@ -110,7 +112,9 @@ const emptyDraft = (state: AppState): ReservationDraft => {
 
 export default function Home() {
   const [state, setState] = useState<AppState>(() => createDefaultState());
-  const [role, setRole] = useState<Role>("owner");
+  const [profile, setProfile] = useState<AuthProfile | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [activeView, setActiveView] = useState<ViewId>("agenda");
   const [weekDate, setWeekDate] = useState(toInputDate(startOfWeek(new Date())));
   const [courtFilter, setCourtFilter] = useState("all");
@@ -127,22 +131,43 @@ export default function Home() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [showCleanConfirm, setShowCleanConfirm] = useState(false);
+  const role: Role = profile?.role ?? "owner";
 
   useEffect(() => {
     let active = true;
 
     async function hydrateState() {
-      const storedState = await loadAppState();
-      if (!active) return;
+      try {
+        const currentProfile = await loadCurrentProfile();
+        if (!active) return;
+        setProfile(currentProfile);
+        setAuthReady(true);
 
-      const storedRole = loadRole();
-      const legalAcceptance = loadLegalAcceptance();
-      const setupComplete = hasInitialConfiguration(storedState);
-      if (storedState) setState(setupComplete ? normalizeState(storedState) : createDefaultState());
-      if (storedRole) setRole(storedRole);
-      if (legalAcceptance) setLegalAccepted(true);
-      setOnboardingComplete(setupComplete);
-      setHydrated(true);
+        if (!currentProfile || currentProfile.status !== "active" || currentProfile.role === "admin") {
+          setHydrated(true);
+          return;
+        }
+
+        if (!currentProfile.complex_id) {
+          setAuthError("El perfil no tiene un complejo asociado.");
+          setHydrated(true);
+          return;
+        }
+
+        const storedState = await loadAppState(currentProfile.complex_id);
+        if (!active) return;
+        const legalAcceptance = loadLegalAcceptance();
+        const setupComplete = hasInitialConfiguration(storedState);
+        setState(storedState ? normalizeState(storedState) : createEmptyInitialState());
+        if (legalAcceptance) setLegalAccepted(true);
+        setOnboardingComplete(setupComplete);
+        setHydrated(true);
+      } catch (error) {
+        if (!active) return;
+        setAuthError(error instanceof Error ? error.message : "No se pudo iniciar CanchaPro.");
+        setAuthReady(true);
+        setHydrated(true);
+      }
     }
 
     void hydrateState();
@@ -152,11 +177,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (hydrated && onboardingComplete) saveAppState(state);
-  }, [state, hydrated, onboardingComplete]);
+    if (hydrated && onboardingComplete && profile?.complex_id) saveAppState(state, profile.complex_id);
+  }, [state, hydrated, onboardingComplete, profile?.complex_id]);
 
   useEffect(() => {
-    saveRole(role);
     if (!canAccess(activeView, role)) setActiveView("agenda");
   }, [role, activeView]);
 
@@ -171,17 +195,18 @@ export default function Home() {
     setLegalAccepted(true);
   }
 
-  function finishOnboarding(next: AppState, configuredRole: Role | "") {
+  function finishOnboarding(next: AppState, _configuredRole: Role | "") {
+    if (!profile?.complex_id) return;
     const normalized = normalizeState(next);
     setState(normalized);
-    if (configuredRole) setRole(configuredRole);
-    saveAppState(normalized);
-    saveOnboardingStatus();
+    saveAppState(normalized, profile.complex_id);
+    saveOnboardingStatus(profile.complex_id);
     setOnboardingComplete(true);
   }
 
   function restoreDemoAndEnter() {
-    const demo = restoreDemoState();
+    if (!profile?.complex_id) return;
+    const demo = restoreDemoState(profile.complex_id);
     setState(demo);
     setOnboardingComplete(true);
   }
@@ -192,7 +217,8 @@ export default function Home() {
   }
 
   function prepareRealTrial() {
-    const emptyState = resetForRealPilot();
+    if (!profile?.complex_id) return;
+    const emptyState = resetForRealPilot(profile.complex_id);
     setState(emptyState);
     setOnboardingComplete(false);
     setDraft(null);
@@ -205,6 +231,17 @@ export default function Home() {
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
+  }
+
+  async function login(email: string, password: string) {
+    setAuthError("");
+    await signInWithPassword(email, password);
+    window.location.reload();
+  }
+
+  async function logout() {
+    await signOut();
+    window.location.reload();
   }
 
   function updateState(next: AppState) {
@@ -334,6 +371,24 @@ export default function Home() {
     .map((reservation) => ({ ...reservation, status: getEffectiveStatus(reservation, reservation.date, state.settings.confirmationLeadHours) }))
     .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
 
+  if (!authReady) return null;
+
+  if (!profile) {
+    return <LoginScreen onLogin={login} externalError={authError} />;
+  }
+
+  if (profile.status !== "active") {
+    return <AccessBlocked message="Este usuario se encuentra desactivado. Contacta al administrador de CanchaPro." onLogout={logout} />;
+  }
+
+  if (profile.role === "admin") {
+    return <AdminPlaceholder profile={profile} onLogout={logout} />;
+  }
+
+  if (!profile.complex_id || authError) {
+    return <AccessBlocked message={authError || "El perfil no tiene un complejo asociado."} onLogout={logout} />;
+  }
+
   if (!hydrated) return null;
 
   if (!legalAccepted) {
@@ -356,13 +411,15 @@ export default function Home() {
             </div>
           </div>
 
-          <label className="grid gap-2">
-            <span className="text-xs font-bold uppercase tracking-wide text-white/65">Rol activo</span>
-            <select className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-white" value={role} onChange={(event) => setRole(event.target.value as Role)}>
-              <option className="text-field-900" value="owner">Dueno / Administrador</option>
-              <option className="text-field-900" value="staff">Encargado operativo</option>
-            </select>
-          </label>
+          <section className="rounded-lg border border-white/10 bg-white/5 p-3">
+            <span className="text-xs font-bold uppercase tracking-wide text-white/55">Sesion activa</span>
+            <strong className="mt-1 block text-sm">{profile.full_name || profile.email}</strong>
+            <span className="text-xs text-white/65">{role === "owner" ? "Dueno / Administrador" : "Encargado operativo"}</span>
+            <button className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white" type="button" onClick={logout}>
+              <LogOut size={15} />
+              Cerrar sesion
+            </button>
+          </section>
 
           <nav className="grid gap-5">
             {(role === "staff" ? staffMenuGroups : [{ label: "", viewIds: views.filter((view) => view.roles.includes(role) && view.id !== "validation").map((view) => view.id) }]).map((group) => (
@@ -469,7 +526,7 @@ export default function Home() {
           )}
 
           {activeView === "public" && (
-            <PublicAvailabilityView state={state} setState={updateState} date={publicDate} setDate={setPublicDate} notify={notify} />
+            <PublicAvailabilityView state={state} setState={updateState} complexId={profile.complex_id} date={publicDate} setDate={setPublicDate} notify={notify} />
           )}
 
           {activeView === "validation" && role === "owner" && (
@@ -536,6 +593,74 @@ export default function Home() {
       )}
 
       {toast && <div className="fixed bottom-5 right-5 max-w-sm rounded-lg bg-field-900 px-4 py-3 text-sm font-bold text-white shadow-soft">{toast}</div>}
+    </main>
+  );
+}
+
+function LoginScreen(props: { onLogin: (email: string, password: string) => Promise<void>; externalError: string }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      await props.onLogin(email.trim(), password);
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "No se pudo iniciar sesion.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
+      <form className="w-full max-w-md rounded-lg border border-white/10 bg-white p-6 text-field-900 shadow-soft" onSubmit={submit}>
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-lime-400 text-sm font-black text-field-900">CP</div>
+          <div>
+            <span className="text-xs font-black uppercase tracking-wide text-lime-700">Acceso por complejo</span>
+            <h1 className="text-2xl font-black">Ingresar a CanchaPro</h1>
+          </div>
+        </div>
+        <p className="mt-4 text-sm leading-6 text-slate-600">Usa el email y la contrasena asignados a tu complejo.</p>
+        <div className="mt-5 grid gap-3">
+          <Field label="Email"><input className="rounded-lg border border-line px-3 py-2" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
+          <Field label="Contrasena"><input className="rounded-lg border border-line px-3 py-2" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></Field>
+        </div>
+        {(error || props.externalError) && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{error || props.externalError}</p>}
+        <button className="mt-5 min-h-11 w-full rounded-lg bg-field-700 px-4 text-sm font-black text-white disabled:bg-slate-300" type="submit" disabled={submitting}>
+          {submitting ? "Ingresando..." : "Iniciar sesion"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function AccessBlocked(props: { message: string; onLogout: () => Promise<void> }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
+      <section className="w-full max-w-lg rounded-lg bg-white p-6 text-field-900 shadow-soft">
+        <span className="text-xs font-black uppercase tracking-wide text-red-700">Acceso bloqueado</span>
+        <h1 className="mt-1 text-2xl font-black">No se puede ingresar</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{props.message}</p>
+        <button className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onLogout}><LogOut size={17} />Cerrar sesion</button>
+      </section>
+    </main>
+  );
+}
+
+function AdminPlaceholder(props: { profile: AuthProfile; onLogout: () => Promise<void> }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
+      <section className="w-full max-w-xl rounded-lg bg-white p-6 text-field-900 shadow-soft">
+        <span className="text-xs font-black uppercase tracking-wide text-lime-700">Administrador general</span>
+        <h1 className="mt-1 text-2xl font-black">Panel admin pendiente de implementacion</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">Sesion iniciada como {props.profile.email}. Este usuario no carga datos de ningun complejo.</p>
+        <button className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-4 text-sm font-black text-field-700" type="button" onClick={props.onLogout}><LogOut size={17} />Cerrar sesion</button>
+      </section>
     </main>
   );
 }
@@ -1341,11 +1466,11 @@ function CustomersView(props: { state: AppState; setState: (state: AppState) => 
   );
 }
 
-function PublicAvailabilityView(props: { state: AppState; setState: (state: AppState) => void; date: string; setDate: (value: string) => void; notify: (message: string) => void }) {
+function PublicAvailabilityView(props: { state: AppState; setState: (state: AppState) => void; complexId: string; date: string; setDate: (value: string) => void; notify: (message: string) => void }) {
   const freeSlots = getPublicSlots(props.state, props.date);
   const selectedIds = new Set(props.state.publicSlotIds ?? []);
   const publishedSlots = freeSlots.filter((slot) => selectedIds.has(slot.id));
-  const publicUrl = typeof window === "undefined" ? "" : `${window.location.origin}/disponibilidad?fecha=${props.date}`;
+  const publicUrl = typeof window === "undefined" ? "" : `${window.location.origin}/disponibilidad?complejo=${props.complexId}&fecha=${props.date}`;
   const message = `${props.state.complex.name} - horarios disponibles ${formatDate(props.date)}:\n\n${publishedSlots.map((slot) => `- ${slot.time} ${slot.courtName} - ${money(slot.price)}`).join("\n")}\n\nPara confirmar, escribinos por WhatsApp.`;
   const whatsappHref = `https://wa.me/${props.state.complex.phone}?text=${encodeURIComponent(message)}`;
 

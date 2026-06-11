@@ -1,4 +1,4 @@
-export type Role = "owner" | "staff";
+export type Role = "admin" | "owner" | "staff";
 
 export type ReservationStatus = "confirmed" | "pending" | "cancelled";
 

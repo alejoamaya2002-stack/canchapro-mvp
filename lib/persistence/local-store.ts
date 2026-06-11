@@ -1,18 +1,21 @@
 import { createDefaultState, storageKey } from "@/lib/demo-data";
-import type { AppState, Role } from "@/lib/types";
+import type { AppState } from "@/lib/types";
 import type { LegalAcceptance, StoredAppState } from "@/lib/persistence/types";
 
-export const roleKey = "canchapro-role";
 export const legalAcceptanceKey = "canchapro-legal-acceptance";
 export const onboardingCompleteKey = "canchapro-onboarding-complete";
+
+function scopedKey(key: string, complexId?: string) {
+  return complexId ? `${key}:${complexId}` : key;
+}
 
 function canUseLocalStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
 }
 
-export function loadAppState(): StoredAppState | null {
+export function loadAppState(complexId?: string): StoredAppState | null {
   if (!canUseLocalStorage()) return null;
-  const raw = window.localStorage.getItem(storageKey);
+  const raw = window.localStorage.getItem(scopedKey(storageKey, complexId));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as StoredAppState;
@@ -21,32 +24,21 @@ export function loadAppState(): StoredAppState | null {
   }
 }
 
-export function saveAppState(state: AppState) {
+export function saveAppState(state: AppState, complexId?: string) {
   if (!canUseLocalStorage()) return;
-  window.localStorage.setItem(storageKey, JSON.stringify(state));
+  window.localStorage.setItem(scopedKey(storageKey, complexId), JSON.stringify(state));
 }
 
-export function restoreDemoState() {
+export function restoreDemoState(complexId?: string) {
   const demo = createDefaultState();
-  saveAppState(demo);
-  saveOnboardingStatus();
+  saveAppState(demo, complexId);
+  saveOnboardingStatus(complexId);
   return demo;
 }
 
-export function clearAppState() {
+export function clearAppState(complexId?: string) {
   if (!canUseLocalStorage()) return;
-  window.localStorage.removeItem(storageKey);
-}
-
-export function loadRole(): Role | null {
-  if (!canUseLocalStorage()) return null;
-  const role = window.localStorage.getItem(roleKey);
-  return role === "owner" || role === "staff" ? role : null;
-}
-
-export function saveRole(role: Role) {
-  if (!canUseLocalStorage()) return;
-  window.localStorage.setItem(roleKey, role);
+  window.localStorage.removeItem(scopedKey(storageKey, complexId));
 }
 
 export function loadLegalAcceptance(): LegalAcceptance | null {
@@ -76,19 +68,19 @@ export function saveLegalAcceptance(acceptance?: LegalAcceptance) {
   return next;
 }
 
-export function loadOnboardingStatus() {
+export function loadOnboardingStatus(complexId?: string) {
   if (!canUseLocalStorage()) return false;
-  return Boolean(window.localStorage.getItem(onboardingCompleteKey));
+  return Boolean(window.localStorage.getItem(scopedKey(onboardingCompleteKey, complexId)));
 }
 
-export function saveOnboardingStatus(completedAt = new Date().toISOString()) {
+export function saveOnboardingStatus(complexId?: string, completedAt = new Date().toISOString()) {
   if (canUseLocalStorage()) {
-    window.localStorage.setItem(onboardingCompleteKey, completedAt);
+    window.localStorage.setItem(scopedKey(onboardingCompleteKey, complexId), completedAt);
   }
   return completedAt;
 }
 
-export function markOnboardingIncomplete() {
+export function markOnboardingIncomplete(complexId?: string) {
   if (!canUseLocalStorage()) return;
-  window.localStorage.removeItem(onboardingCompleteKey);
+  window.localStorage.removeItem(scopedKey(onboardingCompleteKey, complexId));
 }
