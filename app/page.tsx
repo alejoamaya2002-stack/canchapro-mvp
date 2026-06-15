@@ -206,7 +206,7 @@ export default function Home() {
 
   function restoreDemoAndEnter() {
     if (!profile?.complex_id) return;
-    const demo = restoreDemoState(profile.complex_id);
+    const demo = restoreDemoState(profile.complex_id, state);
     setState(demo);
     setOnboardingComplete(true);
   }

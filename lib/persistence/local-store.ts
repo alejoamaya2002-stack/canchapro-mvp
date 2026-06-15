@@ -1,4 +1,4 @@
-import { createDefaultState, storageKey } from "@/lib/demo-data";
+import { createDemoStateForComplex, storageKey } from "@/lib/demo-data";
 import type { AppState } from "@/lib/types";
 import type { LegalAcceptance, StoredAppState } from "@/lib/persistence/types";
 
@@ -29,8 +29,8 @@ export function saveAppState(state: AppState, complexId?: string) {
   window.localStorage.setItem(scopedKey(storageKey, complexId), JSON.stringify(state));
 }
 
-export function restoreDemoState(complexId?: string) {
-  const demo = createDefaultState();
+export function restoreDemoState(complexId?: string, currentState?: Partial<AppState> | null) {
+  const demo = createDemoStateForComplex(complexId, currentState);
   saveAppState(demo, complexId);
   saveOnboardingStatus(complexId);
   return demo;
