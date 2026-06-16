@@ -4,6 +4,9 @@ import { addDays, generateId, startOfWeek, toInputDate } from "@/lib/utils";
 export const storageKey = "canchapro-next-mvp-state-v1";
 const OTTANTUNO_COMPLEX_ID = "069ab75d-b488-4f2a-ba27-d2540643a912";
 const DEMO_NORTE_COMPLEX_ID = "6610a6f9-d586-4b00-a8d5-c8ddae585f8b";
+const DEMO_NORTE_RESALE_DATE = "2026-06-20";
+const DEMO_NORTE_RESALE_TIME = "20:00";
+const DEMO_NORTE_RESALE_REASON = "El cliente aviso que no llega a completar equipo";
 
 export const costLabels: Record<keyof FixedCosts, string> = {
   electricity: "Luz",
@@ -114,12 +117,12 @@ function createDemoNorteState(currentState?: Partial<AppState> | null): AppState
     ...demoNorteFixedTurns(currentWeekStart, courts),
     ...demoNorteOccasionalReservations(currentWeekStart, courts)
   ];
-  const reservations = mergeDemoReservations(baseReservations, currentWeekReservations);
+  const reservations = dedupeDemoNorteReservations(mergeDemoReservations(baseReservations, currentWeekReservations), courts);
   const resaleSlotId = `${toInputDate(addDays(currentWeekStart, 5))}-${courts[1].id}-20:00`;
   const hasResaleCancellation = reservations.some((reservation) =>
-    reservation.date === toInputDate(addDays(currentWeekStart, 5)) &&
+    reservation.date === DEMO_NORTE_RESALE_DATE &&
     reservation.courtId === courts[1].id &&
-    reservation.time === "20:00" &&
+    reservation.time === DEMO_NORTE_RESALE_TIME &&
     reservation.status === "cancelled"
   );
 
@@ -292,7 +295,7 @@ function demoNorteOccasionalReservations(weekStart: Date, courts: Court[]) {
     demoNorteOccasionalReservation(weekStart, 4, "20:00", courts[1].id, "Lautaro Perez", "pending"),
     demoNorteOccasionalReservation(weekStart, 4, "22:00", courts[0].id, "Santiago Ferreyra", "pending"),
     demoNorteOccasionalReservation(weekStart, 5, "17:00", courts[0].id, "Ivan Benitez", "pending"),
-    demoNorteOccasionalReservation(weekStart, 5, "20:00", courts[1].id, "Rodrigo Luna", "cancelled", false, "El cliente aviso que no llega a completar equipo", 6),
+    demoNorteOccasionalReservation(weekStart, 5, "20:00", courts[1].id, "Rodrigo Luna", "cancelled", false, DEMO_NORTE_RESALE_REASON, 6),
     demoNorteOccasionalReservation(weekStart, 5, "22:00", courts[0].id, "Andres Correa", "pending"),
     demoNorteOccasionalReservation(weekStart, 6, "17:00", courts[1].id, "Ezequiel Navarro", "pending"),
     demoNorteOccasionalReservation(weekStart, 6, "19:00", courts[0].id, "Facundo Romero", "pending"),
@@ -326,6 +329,7 @@ function demoNorteOccasionalReservation(
   const paidAt = paid ? new Date(`${date}T${time}:00`).toISOString() : undefined;
   return {
     ...reservation,
+    id: demoNorteReservationId(date, time, courtId, customerName, status),
     status,
     cancellationReason: status === "cancelled" ? notes : "",
     cancelledAt: status === "cancelled" ? reservation.cancelledAt : undefined,
@@ -333,6 +337,59 @@ function demoNorteOccasionalReservation(
     paidAt,
     paidDates: paid ? [date] : undefined
   };
+}
+
+function dedupeDemoNorteReservations(reservations: Reservation[], courts: Court[]): Reservation[] {
+  const demoCancellations = reservations.filter((reservation) => isDemoNorteResaleCancellation(reservation));
+  if (demoCancellations.length === 0) return reservations;
+
+  const canonical = normalizeDemoNorteResaleCancellation(demoCancellations[demoCancellations.length - 1], courts);
+  return [
+    ...reservations.filter((reservation) => !isDemoNorteResaleCancellation(reservation)),
+    canonical
+  ];
+}
+
+function isDemoNorteResaleCancellation(reservation: Reservation) {
+  return reservation.date === DEMO_NORTE_RESALE_DATE &&
+    reservation.time === DEMO_NORTE_RESALE_TIME &&
+    reservation.status === "cancelled" &&
+    reservation.price === 35000 &&
+    (reservation.cancellationReason === DEMO_NORTE_RESALE_REASON || reservation.notes === DEMO_NORTE_RESALE_REASON);
+}
+
+function normalizeDemoNorteResaleCancellation(reservation: Reservation, courts: Court[]): Reservation {
+  const cancelledAt = new Date(`${DEMO_NORTE_RESALE_DATE}T${DEMO_NORTE_RESALE_TIME}:00`);
+  cancelledAt.setHours(cancelledAt.getHours() - 6);
+
+  return {
+    ...reservation,
+    id: `demo-norte-cancellation-${DEMO_NORTE_RESALE_DATE}-${DEMO_NORTE_RESALE_TIME.replace(":", "")}-${courts[1].id}`,
+    courtId: courts[1].id,
+    customerName: "Rodrigo Luna",
+    customerPhone: phoneForCustomer("Rodrigo Luna"),
+    date: DEMO_NORTE_RESALE_DATE,
+    time: DEMO_NORTE_RESALE_TIME,
+    type: "occasional" as const,
+    status: "cancelled" as const,
+    price: 35000,
+    durationMinutes: 60,
+    notes: DEMO_NORTE_RESALE_REASON,
+    cancellationReason: DEMO_NORTE_RESALE_REASON,
+    cancellationLastMinute: true,
+    cancelledAt: cancelledAt.toISOString(),
+    confirmedDates: undefined,
+    paidDates: undefined,
+    paid: false,
+    paidAt: undefined
+  };
+}
+
+function demoNorteReservationId(date: string, time: string, courtId: string, customerName: string, status: Reservation["status"]) {
+  if (date === DEMO_NORTE_RESALE_DATE && time === DEMO_NORTE_RESALE_TIME && status === "cancelled") {
+    return `demo-norte-cancellation-${date}-${time.replace(":", "")}-${courtId}`;
+  }
+  return `demo-norte-${date}-${time.replace(":", "")}-${courtId}-${customerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
 function mergeDemoReservations(existingReservations: Reservation[], demoReservations: Reservation[]) {
