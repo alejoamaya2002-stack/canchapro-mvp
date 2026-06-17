@@ -35,38 +35,10 @@ export const defaultSettings: Settings = {
 
 export function createDefaultState(): AppState {
   const weekStart = startOfWeek(new Date("2026-06-01T12:00:00"));
-  const courts: Court[] = [
-    {
-      id: "court-1",
-      name: "Cancha 1 - Futbol 5 techada",
-      type: "futbol5",
-      roofed: true,
-      active: true,
-      openHour: "17:00",
-      closeHour: "00:00",
-      slotStepMinutes: 60
-    },
-    {
-      id: "court-2",
-      name: "Cancha 2 - Futbol 5 abierta",
-      type: "futbol5",
-      roofed: false,
-      active: true,
-      openHour: "17:00",
-      closeHour: "00:00",
-      slotStepMinutes: 60
-    }
-  ];
+  const courts = createOttantunoCourts();
+  const reservations = createOttantunoReservations(weekStart, courts);
 
-  const reservations = [
-    ...schoolBlocks(weekStart, courts),
-    ...weeklyFixedTurns(weekStart, courts),
-    ...weekendReservations(weekStart, courts),
-    ...nextWeekOccasionalReservations(weekStart, courts),
-    ...nextWeekendResaleCase(weekStart, courts)
-  ];
-
-  return {
+  return normalizeOttantunoDemoStateForPartIII({
     complex: {
       id: "complex-ottantuno-demo",
       name: "Ottantuno",
@@ -88,11 +60,9 @@ export function createDefaultState(): AppState {
       other: 100000
     },
     reservations,
-    publicSlotIds: [
-      `${toInputDate(addDays(weekStart, 6))}-${courts[1].id}-20:00`
-    ],
+    publicSlotIds: createOttantunoPublicSlotIds(courts),
     validationRecords: createValidationRecords()
-  };
+  });
 }
 
 export function createDemoStateForComplex(complexId?: string, currentState?: Partial<AppState> | null): AppState {
@@ -102,6 +72,436 @@ export function createDemoStateForComplex(complexId?: string, currentState?: Par
   if (complexName.includes("demo norte")) return createDemoNorteState(currentState);
   if (complexName.includes("ottantuno") || !complexId) return createDefaultState();
   return createGenericOperationalDemoState(currentState);
+}
+
+function createOttantunoCourts(): Court[] {
+  return [
+    {
+      id: "court-1",
+      name: "Cancha 1 - Futbol 5 techada",
+      type: "futbol5",
+      roofed: true,
+      active: true,
+      openHour: "17:00",
+      closeHour: "00:00",
+      slotStepMinutes: 60,
+      price: 45000
+    },
+    {
+      id: "court-2",
+      name: "Cancha 2 - Futbol 5 abierta",
+      type: "futbol5",
+      roofed: false,
+      active: true,
+      openHour: "17:00",
+      closeHour: "00:00",
+      slotStepMinutes: 60,
+      price: 45000
+    }
+  ];
+}
+
+function createOttantunoReservations(weekStart: Date, courts: Court[]) {
+  return normalizeOttantunoTemporalStates(dedupeByIdAndSlot([
+    ...ottantunoFixedTurns(weekStart, courts),
+    ...ottantunoOccasionalReservations(weekStart, courts)
+  ]));
+}
+
+function createOttantunoPublicSlotIds(courts: Court[]) {
+  return [
+    `${toInputDate(addDays(startOfWeek(new Date("2026-06-01T12:00:00")), 6))}-${courts[1].id}-20:00`,
+    `2026-06-17-${courts[0].id}-23:00`,
+    `2026-06-19-${courts[1].id}-20:00`
+  ];
+}
+
+function ottantunoFixedTurns(weekStart: Date, courts: Court[]) {
+  const fixedTurns: Array<[number, string, string, string, number]> = [
+    [1, "17:00", courts[0].id, "Escuelita Ottantuno", 0],
+    [1, "18:00", courts[0].id, "Escuelita Ottantuno", 0],
+    [1, "17:00", courts[1].id, "Escuelita Ottantuno", 0],
+    [1, "18:00", courts[1].id, "Escuelita Ottantuno", 0],
+    [3, "17:00", courts[0].id, "Escuelita Ottantuno", 0],
+    [3, "18:00", courts[0].id, "Escuelita Ottantuno", 0],
+    [3, "17:00", courts[1].id, "Escuelita Ottantuno", 0],
+    [3, "18:00", courts[1].id, "Escuelita Ottantuno", 0],
+    [0, "20:00", courts[0].id, "Javier Almiron", 45000],
+    [7, "19:00", courts[1].id, "Barrio Norte", 45000],
+    [7, "21:00", courts[1].id, "La 22 FC", 45000],
+    [1, "20:00", courts[1].id, "La 46 FC", 45000],
+    [8, "21:00", courts[0].id, "Los Profes", 45000],
+    [2, "21:00", courts[0].id, "Federico Ledesma", 45000],
+    [9, "20:00", courts[1].id, "Deportivo 46", 45000],
+    [9, "22:00", courts[0].id, "Amigos del Parque", 45000],
+    [3, "20:00", courts[1].id, "Veteranos 45", 45000],
+    [10, "21:00", courts[0].id, "Los del Fondo", 45000],
+    [4, "22:00", courts[0].id, "Nicolas Benitez", 45000],
+    [11, "19:00", courts[1].id, "La 10 Futbol", 45000],
+    [11, "21:00", courts[1].id, "Viejos Crack", 45000],
+    [12, "23:00", courts[0].id, "Fulbito 81", 45000],
+    [12, "22:00", courts[1].id, "Equipo Norte", 45000],
+    [13, "23:00", courts[0].id, "Amigos del Parque", 45000],
+    [13, "22:00", courts[1].id, "Los Profes", 45000]
+  ];
+
+  return fixedTurns.map(([dayOffset, time, courtId, customerName, price]) => ottantunoFixedReservation(weekStart, dayOffset, time, courtId, customerName, price));
+}
+
+function ottantunoFixedReservation(weekStart: Date, dayOffset: number, time: string, courtId: string, customerName: string, price: number): Reservation {
+  const date = toInputDate(addDays(weekStart, dayOffset));
+  const confirmedDates = recurringDatesUntil(date, "2026-06-17");
+  return {
+    id: stableId("ottantuno-fixed", date, time, courtId, customerName),
+    date,
+    time,
+    courtId,
+    type: "fixed",
+    customerName,
+    customerPhone: phoneForCustomer(customerName),
+    price,
+    status: "pending",
+    notes: price === 0 ? "Bloqueo recurrente institucional" : "Turno fijo semanal",
+    durationMinutes: 60,
+    confirmedDates,
+    paidDates: price > 0 ? confirmedDates : undefined,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
+  const items: Reservation[] = [
+    // Sabado 06/06 y domingo 07/06, primer fin de semana mostrado en Parte II.
+    ottantunoOccasional("2026-06-06", "17:00", courts[0].id, "Martin Duarte", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "17:00", courts[1].id, "Agustin Ferreyra", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "18:00", courts[0].id, "Rodrigo Sosa", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "18:00", courts[1].id, "Juan Ignacio Roldan", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "19:00", courts[0].id, "Tomas Galarza", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "19:00", courts[1].id, "Franco Medina", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "20:00", courts[0].id, "Sebastian Pereyra", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "20:00", courts[1].id, "Pablo Echeverria", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "21:00", courts[0].id, "Leandro Correa", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "21:00", courts[1].id, "Emiliano Castro", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "22:00", courts[0].id, "Matias Barreto", "confirmed", true),
+    ottantunoOccasional("2026-06-06", "23:00", courts[1].id, "Santiago Villar", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "17:00", courts[0].id, "Lautaro Gomez", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "17:00", courts[1].id, "Julian Costa", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "18:00", courts[0].id, "Andres Molina", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "18:00", courts[1].id, "Manuel Quiroga", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "19:00", courts[0].id, "Bruno Sampedro", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "19:00", courts[1].id, "Patricio Silva", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "20:00", courts[0].id, "Facundo Miranda", "confirmed", true),
+    ottantunoCancellation("2026-06-07", "20:00", courts[1].id, "Grupo de Joaquin", "Cancelan por mal clima", false),
+    ottantunoOccasional("2026-06-07", "21:00", courts[0].id, "Gaston Arce", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "21:00", courts[1].id, "Rafael Mendez", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "22:00", courts[0].id, "Ignacio Herrera", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "23:00", courts[1].id, "Diego Farias", "confirmed", true),
+
+    // Semana 08/06 al 14/06.
+    ottantunoOccasional("2026-06-08", "19:00", courts[0].id, "Alan Peralta", "confirmed", true),
+    ottantunoOccasional("2026-06-08", "20:00", courts[1].id, "Pedro Gimenez", "confirmed", true),
+    ottantunoOccasional("2026-06-09", "19:00", courts[1].id, "Emiliano Torres", "confirmed", true),
+    ottantunoOccasional("2026-06-09", "20:00", courts[0].id, "Federico Ruiz", "confirmed", true),
+    ottantunoOccasional("2026-06-09", "22:00", courts[0].id, "Cristian Acosta", "confirmed", true),
+    ottantunoOccasional("2026-06-10", "20:00", courts[0].id, "Mateo Silva", "confirmed", true),
+    ottantunoOccasional("2026-06-10", "19:00", courts[1].id, "Ezequiel Ponce", "confirmed", true),
+    ottantunoOccasional("2026-06-10", "21:00", courts[1].id, "Gonzalo Arias", "confirmed", true),
+    ottantunoCancellation("2026-06-10", "18:00", courts[0].id, "Camilo Fuentes", "Equipo incompleto, avisan por WhatsApp", true),
+    ottantunoOccasional("2026-06-10", "18:00", courts[0].id, "Benjamin Aguirre", "confirmed", true, "Recuperado por reventa"),
+    ottantunoCancellation("2026-06-12", "22:00", courts[1].id, "Hernan Bustos", "Cancelan por falta de jugadores", false),
+    ottantunoOccasional("2026-06-11", "19:00", courts[0].id, "Agustin Salas", "confirmed", true),
+    ottantunoOccasional("2026-06-11", "21:00", courts[1].id, "Matias Rios", "confirmed", true),
+    ottantunoOccasional("2026-06-12", "19:00", courts[0].id, "Marcos Cabrera", "confirmed", true),
+    ottantunoOccasional("2026-06-12", "20:00", courts[0].id, "Tomas Cabrera", "confirmed", true),
+    ottantunoOccasional("2026-06-13", "19:00", courts[1].id, "Luciano Vega", "confirmed", true),
+    ottantunoOccasional("2026-06-13", "18:00", courts[0].id, "Benjamin Aguirre", "confirmed", true),
+    ottantunoOccasional("2026-06-13", "20:00", courts[1].id, "Diego Morales", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "17:00", courts[0].id, "Ramon Villalba", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "18:00", courts[0].id, "Maximiliano Torres", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "19:00", courts[0].id, "Joaquin Vera", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "19:00", courts[1].id, "Gabriel Nunez", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "21:00", courts[0].id, "Ariel Dominguez", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "18:00", courts[1].id, "Lucas Morel", "confirmed", true),
+    ottantunoOccasional("2026-06-14", "20:00", courts[1].id, "Dario Campos", "confirmed", true),
+
+    // Lunes feriado 15/06, alta demanda y recuperacion.
+    ottantunoOccasional("2026-06-15", "17:00", courts[0].id, "Lucas Medina", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "17:00", courts[1].id, "Federico Ruiz", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "18:00", courts[0].id, "Nicolas Herrera", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "18:00", courts[1].id, "Bruno Castillo", "confirmed", true),
+    ottantunoCancellation("2026-06-15", "19:00", courts[0].id, "Ivan Benitez", "No llegan a completar equipo", true),
+    ottantunoOccasional("2026-06-15", "19:00", courts[0].id, "Matias Rios", "confirmed", true, "Recuperado por reventa"),
+    ottantunoOccasional("2026-06-15", "20:00", courts[1].id, "Franco Molina", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "21:00", courts[0].id, "Juan Pablo Gomez", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "22:00", courts[0].id, "Santiago Ferreyra", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "22:00", courts[1].id, "Martin Acosta", "confirmed", true),
+    ottantunoOccasional("2026-06-15", "23:00", courts[1].id, "Lautaro Perez", "confirmed", true),
+
+    // Martes 16 y miercoles 17, uso moderado ya gestionado.
+    ottantunoOccasional("2026-06-16", "19:00", courts[0].id, "Ivan Benitez", "confirmed", true),
+    ottantunoOccasional("2026-06-16", "19:00", courts[1].id, "Rodrigo Luna", "confirmed", true),
+    ottantunoOccasional("2026-06-16", "20:00", courts[0].id, "Rodrigo Luna", "confirmed", true),
+    ottantunoOccasional("2026-06-16", "21:00", courts[1].id, "Ramiro Suarez", "confirmed", true),
+    ottantunoCancellation("2026-06-16", "22:00", courts[1].id, "Ezequiel Navarro", "Avisan que se baja el equipo", true),
+    ottantunoOccasional("2026-06-16", "22:00", courts[1].id, "Facundo Romero", "confirmed", true, "Recuperado por reventa"),
+    ottantunoOccasional("2026-06-16", "23:00", courts[0].id, "Andres Correa", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "17:00", courts[0].id, "Diego Morales", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "18:00", courts[0].id, "Emiliano Torres", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "18:00", courts[1].id, "Ramiro Suarez", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "19:00", courts[1].id, "Joaquin Vera", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "20:00", courts[0].id, "Nicolas Herrera", "confirmed", true),
+    ottantunoOccasional("2026-06-17", "22:00", courts[1].id, "Facundo Romero", "confirmed", true),
+    ottantunoCancellation("2026-06-17", "23:00", courts[0].id, "Pedro Gimenez", "Cancelan sobre la hora, sin reemplazo", false),
+    ottantunoOccasional("2026-06-17", "23:00", courts[0].id, "Damian Amaya", "confirmed", true, "Recuperado por reventa"),
+
+    // Futuras hasta 24/06, pendientes salvo cancelacion cercana.
+    ottantunoOccasional("2026-06-18", "19:00", courts[1].id, "Mateo Silva", "pending", false),
+    ottantunoOccasional("2026-06-18", "21:00", courts[1].id, "Ivan Benitez", "pending", false),
+    ottantunoOccasional("2026-06-18", "23:00", courts[0].id, "Gonzalo Arias", "pending", false),
+    ottantunoCancellation("2026-06-19", "20:00", courts[1].id, "Agustin Salas", "Cancelan con dos dias de anticipacion", false),
+    ottantunoOccasional("2026-06-19", "18:00", courts[0].id, "Tomas Cabrera", "pending", false),
+    ottantunoOccasional("2026-06-19", "23:00", courts[1].id, "Bruno Castillo", "pending", false),
+    ottantunoOccasional("2026-06-20", "17:00", courts[0].id, "Lautaro Perez", "pending", false),
+    ottantunoOccasional("2026-06-20", "18:00", courts[1].id, "Santiago Ferreyra", "pending", false),
+    ottantunoOccasional("2026-06-20", "22:00", courts[0].id, "Martin Acosta", "pending", false),
+    ottantunoOccasional("2026-06-21", "17:00", courts[1].id, "Rodrigo Luna", "pending", false),
+    ottantunoOccasional("2026-06-21", "19:00", courts[1].id, "Andres Correa", "pending", false),
+    ottantunoOccasional("2026-06-21", "21:00", courts[0].id, "Andres Correa", "pending", false),
+    ottantunoOccasional("2026-06-22", "18:00", courts[0].id, "Ezequiel Navarro", "pending", false),
+    ottantunoOccasional("2026-06-23", "19:00", courts[1].id, "Facundo Romero", "pending", false),
+    ottantunoOccasional("2026-06-24", "20:00", courts[0].id, "Diego Morales", "pending", false)
+  ];
+
+  return items;
+}
+
+function ottantunoOccasional(date: string, time: string, courtId: string, customerName: string, status: Reservation["status"], paid: boolean, notes = ""): Reservation {
+  return {
+    id: stableId("ottantuno-reservation", date, time, courtId, customerName),
+    date,
+    time,
+    courtId,
+    type: "occasional",
+    customerName,
+    customerPhone: phoneForCustomer(customerName),
+    price: 45000,
+    status,
+    notes,
+    durationMinutes: 60,
+    paid,
+    paidAt: paid ? new Date(`${date}T${time}:00`).toISOString() : undefined,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function ottantunoCancellation(date: string, time: string, courtId: string, customerName: string, reason: string, recovered: boolean): Reservation {
+  const cancelledAt = new Date(`${date}T${time}:00`);
+  cancelledAt.setHours(cancelledAt.getHours() - (date > "2026-06-17" ? 48 : 6));
+  return {
+    id: stableId("ottantuno-cancellation", date, time, courtId, reason),
+    date,
+    time,
+    courtId,
+    type: "occasional",
+    customerName,
+    customerPhone: phoneForCustomer(customerName),
+    price: 45000,
+    status: "cancelled",
+    notes: recovered ? `${reason}. Recuperado por reventa.` : reason,
+    durationMinutes: 60,
+    cancellationReason: recovered ? `${reason}. Recuperado por reventa.` : reason,
+    cancellationLastMinute: date <= "2026-06-17",
+    cancelledAt: cancelledAt.toISOString(),
+    paid: false,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function recurringDatesUntil(startDate: string, endDate: string) {
+  const dates: string[] = [];
+  let cursor = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  while (cursor <= end) {
+    dates.push(toInputDate(cursor));
+    cursor = addDays(cursor, 7);
+  }
+  return dates;
+}
+
+function stableId(prefix: string, date: string, time: string, courtId: string, label: string) {
+  return `${prefix}-${date}-${time.replace(":", "")}-${courtId}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
+function dedupeByIdAndSlot(reservations: Reservation[]) {
+  const byId = new Map<string, Reservation>();
+  reservations.forEach((reservation) => byId.set(reservation.id, reservation));
+  return Array.from(byId.values());
+}
+
+function normalizeOttantunoTemporalStates(reservations: Reservation[]) {
+  return reservations.map((reservation) => {
+    if (reservation.status === "cancelled") {
+      return { ...reservation, paid: false, paidAt: undefined, paidDates: undefined, confirmedDates: undefined };
+    }
+
+    if (reservation.type === "fixed") {
+      const activeDates = recurringDatesUntil(reservation.date, "2026-06-24");
+      const confirmedDates = activeDates.filter((date) => date <= "2026-06-17");
+      const paidDates = reservation.price > 0 ? confirmedDates : undefined;
+      return {
+        ...reservation,
+        status: "pending" as const,
+        confirmedDates,
+        paidDates,
+        paid: false,
+        paidAt: undefined
+      };
+    }
+
+    if (reservation.date >= "2026-06-06" && reservation.date <= "2026-06-17") {
+      return {
+        ...reservation,
+        status: "confirmed" as const,
+        paid: true,
+        paidAt: reservation.paidAt ?? new Date(`${reservation.date}T${reservation.time}:00`).toISOString(),
+        paidDates: undefined,
+        confirmedDates: undefined
+      };
+    }
+
+    if (reservation.date >= "2026-06-18" && reservation.date <= "2026-06-24") {
+      return {
+        ...reservation,
+        status: "pending" as const,
+        paid: false,
+        paidAt: undefined,
+        paidDates: undefined,
+        confirmedDates: undefined
+      };
+    }
+
+    return reservation;
+  });
+}
+
+function normalizeOttantunoDemoStateForPartIII(state: AppState): AppState {
+  const reservations = dedupeOttantunoDemoReservations(state.reservations)
+    .map((reservation) => normalizeOttantunoReservationForPartIII(reservation));
+  inspectOttantunoDemoConsistency(reservations);
+  return {
+    ...state,
+    reservations,
+    publicSlotIds: uniqueValues(state.publicSlotIds)
+  };
+}
+
+function normalizeOttantunoReservationForPartIII(reservation: Reservation): Reservation {
+  if (reservation.status === "cancelled") {
+    return {
+      ...reservation,
+      status: "cancelled",
+      paid: false,
+      paidAt: undefined,
+      confirmedDates: [],
+      paidDates: [],
+      cancelledDates: reservation.cancelledDates ?? [],
+      cancellationReason: reservation.cancellationReason || reservation.notes || "Cancelacion registrada",
+      cancellationLastMinute: reservation.cancellationLastMinute ?? false
+    };
+  }
+
+  if (reservation.type === "fixed") {
+    const activeDates = recurringDatesUntil(reservation.date, "2026-06-24");
+    const confirmedDates = activeDates.filter((date) => date <= "2026-06-17");
+    const paidDates = reservation.price > 0 ? confirmedDates : [];
+    return {
+      ...reservation,
+      status: "pending",
+      paid: false,
+      paidAt: undefined,
+      confirmedDates,
+      paidDates,
+      cancelledDates: reservation.cancelledDates ?? []
+    };
+  }
+
+  if (reservation.date >= "2026-06-06" && reservation.date <= "2026-06-17") {
+    return {
+      ...reservation,
+      status: "confirmed",
+      paid: true,
+      paidAt: reservation.paidAt ?? new Date(`${reservation.date}T${reservation.time}:00`).toISOString(),
+      confirmedDates: [reservation.date],
+      paidDates: [reservation.date],
+      cancelledDates: reservation.cancelledDates ?? []
+    };
+  }
+
+  if (reservation.date >= "2026-06-18" && reservation.date <= "2026-06-24") {
+    return {
+      ...reservation,
+      status: "pending",
+      paid: false,
+      paidAt: undefined,
+      confirmedDates: [],
+      paidDates: [],
+      cancelledDates: reservation.cancelledDates ?? []
+    };
+  }
+
+  return {
+    ...reservation,
+    cancelledDates: reservation.cancelledDates ?? [],
+    confirmedDates: reservation.confirmedDates ?? [],
+    paidDates: reservation.paidDates ?? []
+  };
+}
+
+function dedupeOttantunoDemoReservations(reservations: Reservation[]): Reservation[] {
+  const byKey = new Map<string, Reservation>();
+  reservations.forEach((reservation) => {
+    const key = reservation.status === "cancelled"
+      ? `cancelled-${reservation.date}-${reservation.time}-${reservation.courtId}-${reservation.cancellationReason || reservation.notes}`
+      : `active-${reservation.date}-${reservation.time}-${reservation.courtId}-${reservation.customerName}`;
+    byKey.set(key, reservation);
+  });
+  return Array.from(byKey.values());
+}
+
+function inspectOttantunoDemoConsistency(reservations: Reservation[]): void {
+  const activePastPending = reservations.filter((reservation) =>
+    reservation.status !== "cancelled" &&
+    reservation.type !== "fixed" &&
+    reservation.date >= "2026-06-06" &&
+    reservation.date <= "2026-06-17" &&
+    reservation.status === "pending"
+  ).length;
+  const activeFutureConfirmed = reservations.filter((reservation) =>
+    reservation.status !== "cancelled" &&
+    reservation.type !== "fixed" &&
+    reservation.date >= "2026-06-18" &&
+    reservation.date <= "2026-06-24" &&
+    (reservation.status === "confirmed" || reservation.paid)
+  ).length;
+  const duplicateCancellationKeys = duplicateCount(reservations
+    .filter((reservation) => reservation.status === "cancelled")
+    .map((reservation) => `${reservation.date}-${reservation.time}-${reservation.courtId}`));
+  const duplicateActiveSlotKeys = duplicateCount(reservations
+    .filter((reservation) => reservation.status !== "cancelled" && reservation.type !== "fixed")
+    .map((reservation) => `${reservation.date}-${reservation.time}-${reservation.courtId}`));
+
+  void {
+    activePastPending,
+    activeFutureConfirmed,
+    duplicateCancellationKeys,
+    duplicateActiveSlotKeys
+  };
+}
+
+function duplicateCount(values: string[]): number {
+  const counts = new Map<string, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return Array.from(counts.values()).filter((count) => count > 1).length;
 }
 
 function createDemoNorteState(currentState?: Partial<AppState> | null): AppState {
@@ -699,18 +1099,32 @@ function phoneForCustomer(customerName: string) {
     "Ariel Dominguez": "2214037859",
     "Lucas Morel": "2216985120",
     "Dario Campos": "2215143708",
+    "La 22 FC": "2216124598",
+    "Barrio Norte": "2214773059",
+    "Los del Fondo": "2216932840",
+    "La 10 Futbol": "2215489026",
+    "Equipo Norte": "2217395164",
+    "Deportivo 46": "2214608732",
+    "Amigos del Parque": "2216812409",
+    "Viejos Crack": "2215927041",
+    "Fulbito 81": "2217340968",
+    "Los Profes": "2214861275",
+    "Camilo Fuentes": "2216128394",
+    "Benjamin Aguirre": "2215714096",
+    "Ramon Villalba": "2216439802",
+    "Emiliano Torres": "2215087349",
+    "Ramiro Suarez": "2216993218",
+    "Joaquin Vera": "2214217605",
+    "Pedro Gimenez": "2217862401",
+    "Damian Amaya": "2214589736",
+    "Mateo Silva": "2215379128",
+    "Gonzalo Arias": "2216043857",
     "Los Martes FC": "2215551001",
-    "Equipo Norte": "2215551002",
     "Veteranos del Parque": "2215551003",
-    "La 10 Futbol": "2215551004",
     "Grupo Los Pibes": "2215551005",
     "Deportivo 10": "2215551006",
     "Fulbito Amigos": "2215551007",
     "La Banda del Miercoles": "2215551008",
-    "Viejos Crack": "2215551009",
-    "Los del Fondo": "2215551030",
-    "Barrio Norte": "2215551031",
-    "La 22 FC": "2215551032",
     "Lucas Medina": "2215551011",
     "Federico Ruiz": "2215551012",
     "Nicolas Herrera": "2215551013",

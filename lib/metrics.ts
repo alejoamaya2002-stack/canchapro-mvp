@@ -49,12 +49,14 @@ export function getMonthlyMetrics(state: AppState, month: string): MonthlyMetric
   const occurrences = getMonthlyOccurrences(state.reservations, year, monthIndex - 1);
   const confirmed = occurrences.filter((occurrence) => occurrence.status === "confirmed");
   const cancelled = occurrences.filter((occurrence) => occurrence.status === "cancelled");
+  const recovered = getRecoveredReservations(state.reservations, year, monthIndex - 1);
   const pending = occurrences.filter((occurrence) => occurrence.status === "pending");
   const sold = occurrences.filter((occurrence) => occurrence.paid);
   const soldCount = sold.length;
   const soldRevenue = sum(sold.map((occurrence) => occurrence.price));
   const revenue = sum(confirmed.map((occurrence) => occurrence.price));
   const cancelledLoss = sum(cancelled.map((occurrence) => occurrence.price));
+  const recoveredRevenue = sum(recovered.map((reservation) => reservation.price));
   const averagePrice = state.settings.basePrice || 1;
   const fixedCosts = sum(Object.values(state.costs));
   const breakEvenTurns = fixedCosts / averagePrice;
@@ -65,6 +67,8 @@ export function getMonthlyMetrics(state: AppState, month: string): MonthlyMetric
     capacity,
     confirmedCount: confirmed.length,
     cancelledCount: cancelled.length,
+    recoveredCount: recovered.length,
+    recoveredRevenue,
     pendingCount: pending.length,
     soldCount,
     soldRevenue,
@@ -77,6 +81,25 @@ export function getMonthlyMetrics(state: AppState, month: string): MonthlyMetric
     cancelledLoss,
     uncapturedRevenue
   };
+}
+
+function getRecoveredReservations(reservations: Reservation[], year: number, monthIndex: number) {
+  const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+  const cancelledSlots = new Map<string, Reservation>();
+  reservations.forEach((reservation) => {
+    if (reservation.status !== "cancelled" || !reservation.date.startsWith(monthPrefix)) return;
+    cancelledSlots.set(`${reservation.date}-${reservation.time}-${reservation.courtId}`, reservation);
+  });
+
+  const recovered = new Map<string, Reservation>();
+  reservations.forEach((reservation) => {
+    if (reservation.status !== "confirmed" || !reservation.date.startsWith(monthPrefix)) return;
+    const key = `${reservation.date}-${reservation.time}-${reservation.courtId}`;
+    if (!cancelledSlots.has(key)) return;
+    recovered.set(key, reservation);
+  });
+
+  return Array.from(recovered.values());
 }
 
 function getMonthlyOccurrences(reservations: Reservation[], year: number, monthIndex: number) {

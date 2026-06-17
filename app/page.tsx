@@ -1098,10 +1098,12 @@ function AgendaView(props: {
                       if (!isOpenDay(dateText, props.settings)) return null;
                       const courtSlots = getCourtTimeSlots(court, props.settings);
                       if (!courtSlots.includes(slot)) return null;
-                      const reservation = props.reservations.find((item) => reservationAppearsOnDate(item, dateText) && item.courtId === court.id && item.status !== "cancelled" && slotOverlapsReservation(slot, item));
+                      const activeReservations = props.reservations.filter((item) => reservationAppearsOnDate(item, dateText) && item.courtId === court.id && item.status !== "cancelled" && slotOverlapsReservation(slot, item));
+                      const confirmedReservation = activeReservations.find((item) => getEffectiveStatus(item, dateText, props.settings.confirmationLeadHours) === "confirmed");
+                      const pendingReservation = activeReservations[0];
                       const cancelledReservation = props.reservations.find((item) => item.date === dateText && item.time === slot && item.courtId === court.id && item.status === "cancelled");
-                      const sourceReservation = reservation ?? cancelledReservation;
-                      const visibleReservation = sourceReservation ? { ...sourceReservation, date: dateText, status: getEffectiveStatus(sourceReservation, dateText, props.settings.confirmationLeadHours) } : undefined;
+                      const sourceReservation = confirmedReservation ?? cancelledReservation ?? pendingReservation;
+                      const visibleReservation = sourceReservation ? { ...sourceReservation, date: dateText, status: sourceReservation.status === "cancelled" ? "cancelled" as const : getEffectiveStatus(sourceReservation, dateText, props.settings.confirmationLeadHours) } : undefined;
                       if (props.statusFilter === "free" && visibleReservation) return null;
                       if (props.statusFilter !== "all" && props.statusFilter !== "free" && visibleReservation?.status !== props.statusFilter) return null;
                       return visibleReservation ? (
@@ -1552,11 +1554,13 @@ function DashboardView(props: { state: AppState; month: string; setMonth: (value
         <Kpi label="Ocupacion" value={percent(props.metrics.occupancy)} />
         <Kpi label="Turnos confirmados" value={String(props.metrics.confirmedCount)} />
         <Kpi label="Turnos vendidos" value={String(props.metrics.soldCount)} />
+        <Kpi label="Turnos recuperados" value={String(props.metrics.recoveredCount)} />
         <Kpi label="Cancelaciones" value={String(props.metrics.cancelledCount)} />
         <Kpi label="Ingresos estimados" value={money(props.metrics.revenue)} />
         <Kpi label="Ingresos cobrados" value={money(props.metrics.soldRevenue)} />
         <Kpi label="Turnos libres" value={String(Math.max(0, props.metrics.capacity - props.metrics.confirmedCount))} />
         <Kpi label="Ingresos perdidos" value={money(props.metrics.cancelledLoss)} />
+        <Kpi label="Ingresos recuperados" value={money(props.metrics.recoveredRevenue)} />
         <Kpi label="Recuperable estimado" value={money(props.metrics.uncapturedRevenue)} />
         <Kpi label="Punto equilibrio" value={money(props.metrics.fixedCosts)} />
       </div>
@@ -1571,7 +1575,7 @@ function DashboardView(props: { state: AppState; month: string; setMonth: (value
         </article>
         <article className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <span className="text-xs font-black uppercase tracking-wide text-emerald-800">Oportunidad de recuperacion</span>
-          <p className="mt-2 text-sm font-bold text-emerald-950">Cada turno recuperado mejora el resultado mensual. Este dato sirve para conversar si la reventa de cancelaciones es un dolor real del complejo.</p>
+          <p className="mt-2 text-sm font-bold text-emerald-950">{props.metrics.recoveredCount} turnos recuperados representan {money(props.metrics.recoveredRevenue)} de ingreso que no se perdio.</p>
         </article>
         <article className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <span className="text-xs font-black uppercase tracking-wide text-emerald-800">Horarios valle detectados</span>
@@ -1995,7 +1999,7 @@ function normalizeState(input: Partial<AppState>) {
     costs: { ...fallback.costs, ...input.costs },
     reservations: (input.reservations ?? fallback.reservations).map((reservation) => ({
       ...reservation,
-      status: reservation.status === "confirmed" && !isWithinConfirmationWindow(reservation.date, reservation.time, settings.confirmationLeadHours) && reservation.date >= toInputDate(new Date()) ? "pending" : reservation.status,
+      status: reservation.status === "confirmed" && !reservation.paid && !reservation.paidAt && !reservation.paidDates?.includes(reservation.date) && !isWithinConfirmationWindow(reservation.date, reservation.time, settings.confirmationLeadHours) && reservation.date > toInputDate(new Date()) ? "pending" : reservation.status,
       durationMinutes: reservation.durationMinutes || settings.slotDuration || 60,
       cancellationReason: reservation.cancellationReason || "",
       cancellationLastMinute: reservation.cancellationLastMinute || false,

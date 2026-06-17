@@ -108,6 +108,8 @@ export type MonthlyMetrics = {
   capacity: number;
   confirmedCount: number;
   cancelledCount: number;
+  recoveredCount: number;
+  recoveredRevenue: number;
   pendingCount: number;
   soldCount: number;
   soldRevenue: number;
