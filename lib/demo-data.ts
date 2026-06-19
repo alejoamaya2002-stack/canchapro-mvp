@@ -114,12 +114,9 @@ function createOttantunoReservations(weekStart: Date, courts: Court[]) {
 
 function createOttantunoPublicSlotIds(courts: Court[]) {
   return [
-    `${toInputDate(addDays(startOfWeek(new Date("2026-06-01T12:00:00")), 6))}-${courts[1].id}-20:00`,
-    `2026-06-17-${courts[0].id}-23:00`,
-    `2026-06-19-${courts[1].id}-20:00`,
     `2026-06-23-${courts[0].id}-20:00`,
     `2026-06-24-${courts[1].id}-21:00`,
-    `2026-06-25-${courts[1].id}-20:00`
+    `2026-06-25-${courts[0].id}-20:00`
   ];
 }
 
@@ -247,7 +244,7 @@ function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
     // Martes 16 y miercoles 17, uso moderado ya gestionado.
     ottantunoOccasional("2026-06-16", "19:00", courts[0].id, "Ivan Benitez", "confirmed", true),
     ottantunoOccasional("2026-06-16", "19:00", courts[1].id, "Rodrigo Luna", "confirmed", true),
-    ottantunoOccasional("2026-06-16", "20:00", courts[0].id, "Rodrigo Luna", "confirmed", true),
+    ottantunoOccasional("2026-06-16", "20:00", courts[0].id, "Diego Peralta", "confirmed", true),
     ottantunoOccasional("2026-06-16", "21:00", courts[1].id, "Ramiro Suarez", "confirmed", true),
     ottantunoCancellation("2026-06-16", "22:00", courts[1].id, "Ezequiel Navarro", "Avisan que se baja el equipo", true),
     ottantunoOccasional("2026-06-16", "22:00", courts[1].id, "Facundo Romero", "confirmed", true, "Recuperado por reventa"),
@@ -258,49 +255,49 @@ function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
     ottantunoOccasional("2026-06-17", "19:00", courts[1].id, "Joaquin Vera", "confirmed", true),
     ottantunoOccasional("2026-06-17", "20:00", courts[0].id, "Nicolas Herrera", "confirmed", true),
     ottantunoOccasional("2026-06-17", "22:00", courts[1].id, "Facundo Romero", "confirmed", true),
-    ottantunoCancellation("2026-06-17", "23:00", courts[0].id, "Pedro Gimenez", "Cancelan sobre la hora, sin reemplazo", false),
+    ottantunoCancellation("2026-06-17", "23:00", courts[0].id, "Pedro Gimenez", "Cancelan sobre la hora; se recupera por reventa", false),
     ottantunoOccasional("2026-06-17", "23:00", courts[0].id, "Damian Amaya", "confirmed", true, "Recuperado por reventa"),
 
     // Uso gestionado hasta el 22/06 y futuras pendientes hasta el 29/06.
-    ottantunoOccasional("2026-06-18", "19:00", courts[1].id, "Mateo Silva", "pending", false),
-    ottantunoOccasional("2026-06-18", "21:00", courts[1].id, "Ivan Benitez", "pending", false),
-    ottantunoCancellation("2026-06-18", "22:00", courts[0].id, "Gonzalo Arias", "Cancelacion por lluvia", false),
+    ottantunoOccasional("2026-06-18", "19:00", courts[1].id, "Mateo Silva", "confirmed", true),
+    ottantunoOccasional("2026-06-18", "21:00", courts[1].id, "Ivan Benitez", "confirmed", true),
+    ottantunoCancellation("2026-06-18", "19:00", courts[0].id, "Gonzalo Arias", "Cancelan por baja de jugadores", false),
     ottantunoCancellation("2026-06-18", "22:00", courts[1].id, "Mateo Silva", "Cancelacion por lluvia", false),
-    ottantunoOccasional("2026-06-18", "23:00", courts[0].id, "Gonzalo Arias", "pending", false),
+    ottantunoOccasional("2026-06-18", "23:00", courts[0].id, "Gonzalo Arias", "confirmed", true),
     ottantunoCancellation("2026-06-19", "20:00", courts[1].id, "Agustin Salas", "Cancelan con dos dias de anticipacion", false),
     ottantunoOccasional("2026-06-19", "20:00", courts[1].id, "Facundo Romero", "confirmed", true, "Recuperado por reventa"),
-    ottantunoOccasional("2026-06-19", "18:00", courts[0].id, "Tomas Cabrera", "pending", false),
-    ottantunoOccasional("2026-06-19", "21:00", courts[0].id, "Nicolas Ferreyra", "pending", false),
-    ottantunoOccasional("2026-06-19", "22:00", courts[0].id, "Grupo El Cruce", "pending", false),
-    ottantunoOccasional("2026-06-19", "22:00", courts[1].id, "Santiago Robles", "pending", false),
-    ottantunoOccasional("2026-06-19", "23:00", courts[1].id, "Bruno Castillo", "pending", false),
-    ottantunoOccasional("2026-06-20", "17:00", courts[1].id, "Ramiro Suarez", "pending", false),
-    ottantunoOccasional("2026-06-20", "17:00", courts[0].id, "Lautaro Perez", "pending", false),
-    ottantunoOccasional("2026-06-20", "18:00", courts[0].id, "La Banda del Sabado", "pending", false),
-    ottantunoOccasional("2026-06-20", "18:00", courts[1].id, "Santiago Ferreyra", "pending", false),
-    ottantunoOccasional("2026-06-20", "19:00", courts[1].id, "Franco Acuna", "pending", false),
-    ottantunoOccasional("2026-06-20", "20:00", courts[1].id, "Matias Godoy", "pending", false),
-    ottantunoOccasional("2026-06-20", "21:00", courts[0].id, "Los Pibes de City Bell", "pending", false),
-    ottantunoOccasional("2026-06-20", "22:00", courts[0].id, "Martin Acosta", "pending", false),
-    ottantunoOccasional("2026-06-21", "17:00", courts[1].id, "Rodrigo Luna", "pending", false),
-    ottantunoOccasional("2026-06-21", "18:00", courts[1].id, "Domingueros FC", "pending", false),
-    ottantunoOccasional("2026-06-21", "19:00", courts[0].id, "Ignacio Salvatierra", "pending", false),
-    ottantunoOccasional("2026-06-21", "19:00", courts[1].id, "Andres Correa", "pending", false),
-    ottantunoOccasional("2026-06-21", "21:00", courts[0].id, "Andres Correa", "pending", false),
-    ottantunoOccasional("2026-06-21", "21:00", courts[1].id, "La 21 FC", "pending", false),
-    ottantunoOccasional("2026-06-21", "22:00", courts[0].id, "Equipo de Gonnet", "pending", false),
-    ottantunoOccasional("2026-06-22", "18:00", courts[0].id, "Ezequiel Navarro", "pending", false),
-    ottantunoOccasional("2026-06-22", "20:00", courts[1].id, "Facundo Romero", "pending", false),
+    ottantunoOccasional("2026-06-19", "18:00", courts[0].id, "Tomas Cabrera", "confirmed", true),
+    ottantunoOccasional("2026-06-19", "21:00", courts[0].id, "Nicolas Ferreyra", "confirmed", true),
+    ottantunoOccasional("2026-06-19", "23:00", courts[0].id, "Mariano Ibarra", "confirmed", true),
+    ottantunoOccasional("2026-06-19", "22:00", courts[1].id, "Santiago Robles", "confirmed", true),
+    ottantunoOccasional("2026-06-19", "23:00", courts[1].id, "Bruno Castillo", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "17:00", courts[1].id, "Ramiro Suarez", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "17:00", courts[0].id, "Lautaro Perez", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "18:00", courts[0].id, "Federico Molina", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "18:00", courts[1].id, "Santiago Ferreyra", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "19:00", courts[1].id, "Franco Acuna", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "20:00", courts[1].id, "Matias Godoy", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "21:00", courts[0].id, "Lucas Barrios", "confirmed", true),
+    ottantunoOccasional("2026-06-20", "22:00", courts[0].id, "Martin Acosta", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "17:00", courts[1].id, "Rodrigo Luna", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "18:00", courts[1].id, "Emiliano Paredes", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "19:00", courts[0].id, "Ignacio Salvatierra", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "19:00", courts[1].id, "Andres Correa", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "21:00", courts[0].id, "Federico Molina", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "21:00", courts[1].id, "Mariano Ibarra", "confirmed", true),
+    ottantunoOccasional("2026-06-21", "22:00", courts[0].id, "Lucas Barrios", "confirmed", true),
+    ottantunoOccasional("2026-06-22", "18:00", courts[0].id, "Ezequiel Navarro", "confirmed", true),
+    ottantunoOccasional("2026-06-22", "20:00", courts[1].id, "Facundo Romero", "confirmed", true),
     ottantunoCancellation("2026-06-23", "20:00", courts[0].id, "Pedro Gimenez", "Cancelan con un dia de anticipacion", false),
     ottantunoOccasional("2026-06-23", "19:00", courts[1].id, "Facundo Romero", "pending", false),
     ottantunoOccasional("2026-06-24", "20:00", courts[0].id, "Diego Morales", "pending", false),
     ottantunoCancellation("2026-06-24", "21:00", courts[1].id, "Nicolas Herrera", "Cancelan por viaje laboral", false),
-    ottantunoOccasional("2026-06-25", "18:00", courts[0].id, "Federico Ruiz", "pending", false),
-    ottantunoCancellation("2026-06-25", "20:00", courts[1].id, "Martin Acosta", "Cancelan por lesion de un jugador", false),
+    ottantunoOccasional("2026-06-26", "20:00", courts[1].id, "Federico Ruiz", "pending", false),
+    ottantunoCancellation("2026-06-25", "20:00", courts[0].id, "Martin Acosta", "Cancelan por lesion de un jugador", false),
     ottantunoOccasional("2026-06-26", "19:00", courts[0].id, "Bruno Castillo", "pending", false),
     ottantunoOccasional("2026-06-27", "18:00", courts[1].id, "Lucas Medina", "pending", false),
     ottantunoOccasional("2026-06-28", "20:00", courts[0].id, "Lautaro Perez", "pending", false),
-    ottantunoOccasional("2026-06-29", "21:00", courts[1].id, "Rodrigo Luna", "pending", false)
+    ottantunoOccasional("2026-06-29", "22:00", courts[0].id, "Rodrigo Luna", "pending", false)
   ];
 
   return items;
@@ -1174,17 +1171,16 @@ function phoneForCustomer(customerName: string) {
     "Diego Morales": "2215551026",
     "Ezequiel Navarro": "2215551027",
     "Facundo Romero": "2215551028",
+    "Diego Peralta": "2215551042",
     "Nicolas Ferreyra": "2215551029",
-    "Grupo El Cruce": "2215551030",
     "Santiago Robles": "2215551031",
-    "La Banda del Sabado": "2215551032",
     "Franco Acuna": "2215551033",
     "Matias Godoy": "2215551034",
-    "Los Pibes de City Bell": "2215551035",
-    "Domingueros FC": "2215551036",
     "Ignacio Salvatierra": "2215551037",
-    "La 21 FC": "2215551038",
-    "Equipo de Gonnet": "2215551039"
+    "Mariano Ibarra": "2215551030",
+    "Federico Molina": "2215551032",
+    "Lucas Barrios": "2215551035",
+    "Emiliano Paredes": "2215551036"
   };
   return phones[customerName] ?? "2216652449";
 }
