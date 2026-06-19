@@ -277,10 +277,12 @@ export default function Home() {
   function saveReservation(event: FormEvent) {
     event.preventDefault();
     if (!draft) return;
-    const isNewReservation = !draft.id;
+    const sourceReservation = draft.id ? state.reservations.find((item) => item.id === draft.id) : undefined;
+    const isRecoveringCancelledSlot = sourceReservation?.status === "cancelled" && draft.status !== "cancelled";
+    const isNewReservation = !draft.id || isRecoveringCancelledSlot;
 
     const reservation: Reservation = {
-      id: draft.id ?? generateId("reservation"),
+      id: isRecoveringCancelledSlot ? generateId("reservation") : draft.id ?? generateId("reservation"),
       courtId: draft.courtId,
       customerName: draft.customerName.trim(),
       customerPhone: draft.customerPhone.trim(),
@@ -291,7 +293,7 @@ export default function Home() {
       price: Number(draft.price || 0),
       durationMinutes: Number(draft.durationMinutes || state.settings.slotDuration),
       notes: draft.notes.trim(),
-      createdAt: draft.id ? state.reservations.find((item) => item.id === draft.id)?.createdAt ?? new Date().toISOString() : new Date().toISOString()
+      createdAt: isRecoveringCancelledSlot ? new Date().toISOString() : sourceReservation?.createdAt ?? new Date().toISOString()
     };
 
     const duplicate = state.reservations.find((item) => {
@@ -303,7 +305,7 @@ export default function Home() {
       return;
     }
 
-    const withoutCurrent = state.reservations.filter((item) => item.id !== reservation.id);
+    const withoutCurrent = isRecoveringCancelledSlot ? state.reservations : state.reservations.filter((item) => item.id !== reservation.id);
     updateState({ ...state, reservations: [...withoutCurrent, reservation] });
     setDraft(null);
     if (isNewReservation && reservation.status !== "cancelled") setConfirmationReservation(reservation);
@@ -1102,7 +1104,7 @@ function AgendaView(props: {
                       const confirmedReservation = activeReservations.find((item) => getEffectiveStatus(item, dateText, props.settings.confirmationLeadHours) === "confirmed");
                       const pendingReservation = activeReservations[0];
                       const cancelledReservation = props.reservations.find((item) => item.date === dateText && item.time === slot && item.courtId === court.id && item.status === "cancelled");
-                      const sourceReservation = confirmedReservation ?? cancelledReservation ?? pendingReservation;
+                      const sourceReservation = confirmedReservation ?? pendingReservation ?? cancelledReservation;
                       const visibleReservation = sourceReservation ? { ...sourceReservation, date: dateText, status: sourceReservation.status === "cancelled" ? "cancelled" as const : getEffectiveStatus(sourceReservation, dateText, props.settings.confirmationLeadHours) } : undefined;
                       if (props.statusFilter === "free" && visibleReservation) return null;
                       if (props.statusFilter !== "all" && props.statusFilter !== "free" && visibleReservation?.status !== props.statusFilter) return null;
@@ -1208,7 +1210,11 @@ function AvailabilityView(props: { date: string; phone: string; message: string;
 
 function CancellationsView(props: { state: AppState; setState: (state: AppState) => void; notify: (message: string) => void }) {
   const cancelled = props.state.reservations
-    .filter((reservation) => reservation.status === "cancelled" && !isPastSlot(reservation.date, reservation.time))
+    .filter((reservation) =>
+      reservation.status === "cancelled" &&
+      !isPastSlot(reservation.date, reservation.time) &&
+      !hasActiveReservationInSlot(props.state.reservations, reservation)
+    )
     .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
   const totalRisk = cancelled.reduce((total, reservation) => total + reservation.price, 0);
 
@@ -2119,6 +2125,15 @@ function reservationConflictsOnDate(existing: Reservation, candidate: Reservatio
     existing.courtId === candidate.courtId &&
     reservationAppearsOnDate(existing, candidate.date) &&
     reservationsOverlap(existing, candidate);
+}
+
+function hasActiveReservationInSlot(reservations: Reservation[], slotReservation: Reservation) {
+  return reservations.some((reservation) =>
+    reservation.status !== "cancelled" &&
+    reservation.courtId === slotReservation.courtId &&
+    reservationAppearsOnDate(reservation, slotReservation.date) &&
+    reservationsOverlap(reservation, slotReservation)
+  );
 }
 
 function slotOverlapsReservation(slot: string, reservation: Pick<Reservation, "time" | "durationMinutes">) {
