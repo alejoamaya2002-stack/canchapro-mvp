@@ -93,7 +93,7 @@ function getRecoveredReservations(reservations: Reservation[], year: number, mon
 
   const recovered = new Map<string, Reservation>();
   reservations.forEach((reservation) => {
-    if (reservation.status !== "confirmed" || !reservation.date.startsWith(monthPrefix)) return;
+    if ((reservation.status !== "confirmed" && reservation.status !== "pending") || !reservation.date.startsWith(monthPrefix)) return;
     const key = `${reservation.date}-${reservation.time}-${reservation.courtId}`;
     if (!cancelledSlots.has(key)) return;
     recovered.set(key, reservation);
