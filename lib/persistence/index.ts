@@ -45,8 +45,8 @@ export function saveAppState(state: AppState, complexId?: string) {
   if (isSupabaseConfigured() && complexId) void saveRemoteSafely(state, complexId);
 }
 
-export function restoreDemoState(complexId?: string, currentState?: Partial<AppState> | null) {
-  const demo = restoreLocalDemoState(complexId, currentState);
+export function restoreDemoState(complexId?: string, currentState?: Partial<AppState> | null, demoHint = "") {
+  const demo = restoreLocalDemoState(complexId, currentState, demoHint);
   if (isSupabaseConfigured() && complexId) void restoreRemoteSafely(demo, complexId);
   return demo;
 }
