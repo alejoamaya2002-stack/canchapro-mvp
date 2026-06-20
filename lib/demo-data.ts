@@ -11,6 +11,8 @@ const DEMO_NORTE_COMPLEX_ID = "6610a6f9-d586-4b00-a8d5-c8ddae585f8b";
 const DEMO_NORTE_RESALE_DATE = "2026-06-20";
 const DEMO_NORTE_RESALE_TIME = "20:00";
 const DEMO_NORTE_RESALE_REASON = "El cliente aviso que no llega a completar equipo";
+const LP_SPORTS_DEMO_START_DATE = "2026-06-17";
+const LP_SPORTS_DEMO_CUTOFF_DATE = "2026-06-22";
 
 export const costLabels: Record<keyof FixedCosts, string> = {
   electricity: "Luz",
@@ -73,6 +75,7 @@ export function createDemoStateForComplex(complexId?: string, currentState?: Par
   const complexName = currentState?.complex?.name?.toLowerCase() ?? "";
   if (complexId === OTTANTUNO_COMPLEX_ID) return createDefaultState();
   if (complexId === DEMO_NORTE_COMPLEX_ID) return createDemoNorteState(currentState);
+  if (complexName.includes("lp sports") || complexName.includes("lpsports")) return createLpSportsState();
   if (complexName.includes("demo norte")) return createDemoNorteState(currentState);
   if (complexName.includes("ottantuno") || !complexId) return createDefaultState();
   return createGenericOperationalDemoState(currentState);
@@ -530,6 +533,209 @@ function duplicateCount(values: string[]): number {
   const counts = new Map<string, number>();
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
   return Array.from(counts.values()).filter((count) => count > 1).length;
+}
+
+function createLpSportsState(): AppState {
+  const courts = createLpSportsCourts();
+  return {
+    complex: {
+      id: "complex-lp-sports-demo",
+      name: "LP Sports",
+      address: "Calle 188 entre 519 y 520",
+      phone: "2214915875",
+      responsibleName: "LP Sports",
+      configuredByRole: "owner"
+    },
+    courts,
+    settings: {
+      basePrice: 50000,
+      valleyPrice: 25000,
+      weekendPrice: 50000,
+      openHour: "16:00",
+      closeHour: "00:00",
+      slotDuration: 60,
+      confirmationLeadHours: 0,
+      openDays: [1, 2, 3, 4, 5, 6],
+      valleyRanges: [{ id: "lp-promo-valle", days: [1, 2, 3, 4, 5, 6], from: "16:00", to: "18:00", price: 25000 }]
+    },
+    costs: {
+      electricity: 410000,
+      gas: 52000,
+      water: 68000,
+      salaries: 2380000,
+      rent: 0,
+      taxes: 230000,
+      maintenance: 260000,
+      other: 140000
+    },
+    reservations: createLpSportsReservations(courts),
+    publicSlotIds: createLpSportsPublicSlotIds(courts),
+    validationRecords: []
+  };
+}
+
+function createLpSportsCourts(): Court[] {
+  return [
+    { id: "lp-court-1", name: "Cancha 1 - Futbol 5 abierta", type: "futbol5", roofed: false, active: true, openHour: "16:00", closeHour: "00:00", slotStepMinutes: 60, price: 50000 },
+    { id: "lp-court-2", name: "Cancha 2 - Futbol 5 abierta", type: "futbol5", roofed: false, active: true, openHour: "16:00", closeHour: "00:00", slotStepMinutes: 60, price: 50000 },
+    { id: "lp-court-3", name: "Cancha 3 - Futbol 5 techada", type: "futbol5", roofed: true, active: true, openHour: "16:00", closeHour: "00:00", slotStepMinutes: 60, price: 50000 }
+  ];
+}
+
+function createLpSportsPublicSlotIds(courts: Court[]) {
+  return [
+    `2026-06-24-${courts[0].id}-21:00`,
+    `2026-06-25-${courts[1].id}-19:00`,
+    `2026-06-27-${courts[0].id}-20:00`
+  ];
+}
+
+function createLpSportsReservations(courts: Court[]) {
+  return dedupeByIdAndSlot([
+    ...lpSportsInstitutionalBlocks(courts),
+    ...lpSportsOccasionalReservations(courts)
+  ]);
+}
+
+function lpSportsInstitutionalBlocks(courts: Court[]) {
+  const blocks: Reservation[] = [];
+  const addBlock = (date: string, time: string, courtId: string, customerName: string) => {
+    blocks.push({
+      id: stableId("lp-block", date, time, courtId, customerName),
+      date,
+      time,
+      courtId,
+      type: "fixed",
+      customerName,
+      customerPhone: phoneForCustomer(customerName),
+      price: 0,
+      status: "pending",
+      notes: "Bloqueo institucional, no alquiler de cancha",
+      durationMinutes: 60,
+      confirmedDates: recurringDatesUntil(date, "2026-06-29"),
+      paidDates: [],
+      createdAt: new Date().toISOString()
+    });
+  };
+
+  addBlock("2026-06-17", "18:00", courts[2].id, "Academia LP Sports");
+  ["20:00", "21:00", "22:00"].forEach((time) => {
+    addBlock("2026-06-22", time, courts[0].id, "Torneo Senior");
+    addBlock("2026-06-22", time, courts[1].id, "Torneo Senior");
+    addBlock("2026-06-23", time, courts[0].id, "Torneo Libre");
+    addBlock("2026-06-23", time, courts[1].id, "Torneo Libre");
+    addBlock("2026-06-18", time, courts[0].id, "Torneo Femenino");
+    addBlock("2026-06-18", time, courts[1].id, "Torneo Femenino");
+  });
+  ["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"].forEach((time) => {
+    addBlock("2026-06-19", time, courts[0].id, "Escuelita LP Sports");
+    addBlock("2026-06-19", time, courts[1].id, "Escuelita LP Sports");
+  });
+
+  return blocks;
+}
+
+function lpSportsOccasionalReservations(courts: Court[]) {
+  return [
+    lpOccasional("2026-06-17", "16:00", courts[0].id, "Tomas Aguirre", "confirmed", true),
+    lpOccasional("2026-06-17", "19:00", courts[0].id, "Lautaro Rivas", "confirmed", true),
+    lpOccasional("2026-06-17", "20:00", courts[1].id, "Santiago Duarte", "confirmed", true),
+    lpOccasional("2026-06-17", "21:00", courts[2].id, "Federico Casas", "confirmed", true),
+    lpOccasional("2026-06-17", "22:00", courts[2].id, "Nicolas Molina", "confirmed", true),
+
+    lpOccasional("2026-06-18", "17:00", courts[2].id, "Matias Robledo", "confirmed", true),
+    lpCancellation("2026-06-18", "19:00", courts[0].id, "Joaquin Leiva", "No completan equipo", true),
+    lpOccasional("2026-06-18", "19:00", courts[0].id, "Bruno Herrera", "confirmed", true, "Recuperado por reventa"),
+    lpOccasional("2026-06-18", "19:00", courts[1].id, "Ivan Sosa", "confirmed", true),
+    lpOccasional("2026-06-18", "20:00", courts[2].id, "Diego Altamirano", "confirmed", true),
+    lpOccasional("2026-06-18", "22:00", courts[2].id, "Lucas Caceres", "confirmed", true),
+
+    lpOccasional("2026-06-19", "16:00", courts[2].id, "Mariano Silva", "confirmed", true),
+    lpOccasional("2026-06-19", "18:00", courts[2].id, "Gonzalo Ruiz", "confirmed", true),
+    lpCancellation("2026-06-19", "19:00", courts[2].id, "Pablo Correa", "Cambio de horario laboral", true),
+    lpOccasional("2026-06-19", "19:00", courts[2].id, "Agustin Peralta", "confirmed", true, "Recuperado por reventa"),
+    lpOccasional("2026-06-19", "20:00", courts[2].id, "Franco Medina", "confirmed", true),
+    lpOccasional("2026-06-19", "21:00", courts[2].id, "Ezequiel Ponce", "confirmed", true),
+    lpOccasional("2026-06-19", "22:00", courts[2].id, "Maximiliano Torres", "confirmed", true),
+
+    lpOccasional("2026-06-20", "16:00", courts[0].id, "Alan Fernandez", "confirmed", true),
+    lpOccasional("2026-06-20", "18:00", courts[0].id, "Juan Cruz Castro", "confirmed", true),
+    lpOccasional("2026-06-20", "18:00", courts[1].id, "Sebastian Gomez", "confirmed", true),
+    lpOccasional("2026-06-20", "19:00", courts[0].id, "Emiliano Vargas", "confirmed", true),
+    lpOccasional("2026-06-20", "19:00", courts[1].id, "Rodrigo Salas", "confirmed", true),
+    lpCancellation("2026-06-20", "20:00", courts[1].id, "Damian Escobar", "Se baja el equipo", true),
+    lpOccasional("2026-06-20", "20:00", courts[1].id, "Martin Quiroga", "confirmed", true, "Recuperado por reventa"),
+    lpOccasional("2026-06-20", "20:00", courts[2].id, "Leandro Godoy", "confirmed", true),
+    lpOccasional("2026-06-20", "21:00", courts[0].id, "Facundo Arias", "confirmed", true),
+    lpOccasional("2026-06-20", "21:00", courts[1].id, "Ignacio Varela", "confirmed", true),
+    lpOccasional("2026-06-20", "22:00", courts[2].id, "Julian Morales", "confirmed", true),
+    lpOccasional("2026-06-20", "23:00", courts[0].id, "Ramiro Suarez", "confirmed", true),
+
+    lpOccasional("2026-06-22", "16:00", courts[2].id, "Tomas Cabrera", "confirmed", true),
+    lpOccasional("2026-06-22", "18:00", courts[0].id, "Lucas Medina", "confirmed", true),
+    lpOccasional("2026-06-22", "19:00", courts[1].id, "Federico Ruiz", "confirmed", true),
+    lpOccasional("2026-06-22", "21:00", courts[2].id, "Andres Correa", "confirmed", true),
+
+    lpOccasional("2026-06-23", "17:00", courts[2].id, "Nicolas Herrera", "pending", false),
+    lpOccasional("2026-06-23", "19:00", courts[2].id, "Bruno Castillo", "pending", false),
+    lpOccasional("2026-06-24", "16:00", courts[1].id, "Lautaro Perez", "pending", false),
+    lpCancellation("2026-06-24", "21:00", courts[0].id, "Matias Rios", "Problema de transporte", false),
+    lpOccasional("2026-06-24", "22:00", courts[2].id, "Santiago Ferreyra", "pending", false),
+    lpOccasional("2026-06-25", "17:00", courts[2].id, "Ivan Benitez", "pending", false),
+    lpCancellation("2026-06-25", "19:00", courts[1].id, "Rodrigo Luna", "Lesion de un jugador", false),
+    lpOccasional("2026-06-25", "23:00", courts[2].id, "Diego Morales", "pending", false),
+    lpOccasional("2026-06-26", "17:00", courts[2].id, "Ezequiel Navarro", "pending", false),
+    lpOccasional("2026-06-27", "18:00", courts[0].id, "Facundo Romero", "pending", false),
+    lpCancellation("2026-06-27", "20:00", courts[0].id, "Nicolas Ferreyra", "Mal clima", false),
+    lpOccasional("2026-06-27", "21:00", courts[1].id, "Mariano Ibarra", "pending", false),
+    lpOccasional("2026-06-27", "22:00", courts[2].id, "Diego Peralta", "pending", false),
+    lpOccasional("2026-06-29", "18:00", courts[2].id, "Santiago Robles", "pending", false),
+    lpOccasional("2026-06-29", "19:00", courts[2].id, "Franco Acuna", "pending", false),
+    lpOccasional("2026-06-29", "23:00", courts[2].id, "Lucas Barrios", "pending", false)
+  ];
+}
+
+function lpOccasional(date: string, time: string, courtId: string, customerName: string, status: Reservation["status"], paid: boolean, notes = ""): Reservation {
+  const promo = time === "16:00" || time === "17:00";
+  return {
+    id: stableId("lp-reservation", date, time, courtId, customerName),
+    date,
+    time,
+    courtId,
+    type: "occasional",
+    customerName,
+    customerPhone: phoneForCustomer(customerName),
+    price: promo ? 25000 : 50000,
+    status,
+    notes: promo ? [notes, "Promo 50% off horario valle"].filter(Boolean).join(". ") : notes,
+    durationMinutes: 60,
+    paid,
+    paidAt: paid ? new Date(`${date}T${time}:00`).toISOString() : undefined,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function lpCancellation(date: string, time: string, courtId: string, customerName: string, reason: string, lastMinute: boolean): Reservation {
+  const cancelledAt = new Date(`${date}T${time}:00`);
+  cancelledAt.setHours(cancelledAt.getHours() - (date > LP_SPORTS_DEMO_CUTOFF_DATE ? 24 : 5));
+  return {
+    id: stableId("lp-cancellation", date, time, courtId, reason),
+    date,
+    time,
+    courtId,
+    type: "occasional",
+    customerName,
+    customerPhone: phoneForCustomer(customerName),
+    price: time === "16:00" || time === "17:00" ? 25000 : 50000,
+    status: "cancelled",
+    notes: reason,
+    durationMinutes: 60,
+    cancellationReason: reason,
+    cancellationLastMinute: lastMinute,
+    cancelledAt: cancelledAt.toISOString(),
+    paid: false,
+    createdAt: new Date().toISOString()
+  };
 }
 
 function createDemoNorteState(currentState?: Partial<AppState> | null): AppState {
@@ -1180,7 +1386,39 @@ function phoneForCustomer(customerName: string) {
     "Mariano Ibarra": "2215551030",
     "Federico Molina": "2215551032",
     "Lucas Barrios": "2215551035",
-    "Emiliano Paredes": "2215551036"
+    "Emiliano Paredes": "2215551036",
+    "LP Sports": "2214915875",
+    "Escuelita LP Sports": "2214915875",
+    "Academia LP Sports": "2214915875",
+    "Torneo Senior": "2214915875",
+    "Torneo Libre": "2214915875",
+    "Torneo Femenino": "2214915875",
+    "Tomas Aguirre": "2215551043",
+    "Lautaro Rivas": "2215551044",
+    "Santiago Duarte": "2215551045",
+    "Federico Casas": "2215551046",
+    "Nicolas Molina": "2215551047",
+    "Matias Robledo": "2215551048",
+    "Joaquin Leiva": "2215551049",
+    "Bruno Herrera": "2215551050",
+    "Ivan Sosa": "2215551051",
+    "Diego Altamirano": "2215551052",
+    "Lucas Caceres": "2215551053",
+    "Mariano Silva": "2215551054",
+    "Gonzalo Ruiz": "2215551055",
+    "Pablo Correa": "2215551056",
+    "Agustin Peralta": "2215551057",
+    "Alan Fernandez": "2215551058",
+    "Juan Cruz Castro": "2215551059",
+    "Sebastian Gomez": "2215551060",
+    "Emiliano Vargas": "2215551061",
+    "Rodrigo Salas": "2215551062",
+    "Damian Escobar": "2215551063",
+    "Martin Quiroga": "2215551064",
+    "Leandro Godoy": "2215551065",
+    "Facundo Arias": "2215551066",
+    "Ignacio Varela": "2215551067",
+    "Julian Morales": "2215551068"
   };
   return phones[customerName] ?? "2216652449";
 }
