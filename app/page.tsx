@@ -19,6 +19,7 @@ import {
   UsersRound,
   UserRound
 } from "lucide-react";
+import Image from "next/image";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadCurrentProfile, signInWithPassword, signOut, type AuthProfile } from "@/lib/auth";
@@ -407,7 +408,9 @@ export default function Home() {
       <div className="grid min-h-screen lg:grid-cols-[292px_1fr]">
         <aside className="flex flex-col gap-6 bg-field-900 p-5 text-white lg:p-6">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-lime-400 text-sm font-black text-field-900">CP</div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+              <Image src="/logo-canchapro-icon.svg" alt="CanchaPro" width={48} height={48} className="h-8 w-auto" />
+            </div>
             <div>
               <strong className="block text-lg">CanchaPro</strong>
               <span className="text-sm text-white/65">Gestion comercial</span>
@@ -621,12 +624,10 @@ function LoginScreen(props: { onLogin: (email: string, password: string) => Prom
   return (
     <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
       <form className="w-full max-w-md rounded-lg border border-white/10 bg-white p-6 text-field-900 shadow-soft" onSubmit={submit}>
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-lime-400 text-sm font-black text-field-900">CP</div>
-          <div>
-            <span className="text-xs font-black uppercase tracking-wide text-lime-700">Acceso por complejo</span>
-            <h1 className="text-2xl font-black">Ingresar a CanchaPro</h1>
-          </div>
+        <div>
+          <Image src="/logo-canchapro-horizontal.svg" alt="CanchaPro" width={260} height={90} priority className="mx-auto h-20 w-auto max-w-full" />
+          <span className="mt-4 block text-xs font-black uppercase tracking-wide text-lime-700">Acceso por complejo</span>
+          <h1 className="mt-1 text-2xl font-black">Ingresar</h1>
         </div>
         <p className="mt-4 text-sm leading-6 text-slate-600">Usa el email y la contrasena asignados a tu complejo.</p>
         <div className="mt-5 grid gap-3">
@@ -705,12 +706,10 @@ function LegalGate(props: { onAccept: () => void }) {
   return (
     <main className="grid min-h-screen place-items-center bg-field-900 px-4 py-8 text-white">
       <section className="w-full max-w-2xl rounded-lg border border-white/10 bg-white p-6 text-field-900 shadow-soft">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-lime-400 text-sm font-black text-field-900">CP</div>
-          <div>
-            <span className="text-xs font-black uppercase tracking-wide text-lime-700">MVP / Piloto</span>
-            <h1 className="text-2xl font-black">Ingresar a CanchaPro</h1>
-          </div>
+        <div>
+          <Image src="/logo-canchapro-horizontal.svg" alt="CanchaPro" width={260} height={90} className="mx-auto h-20 w-auto max-w-full" />
+          <span className="mt-4 block text-xs font-black uppercase tracking-wide text-lime-700">MVP / Piloto</span>
+          <h1 className="mt-1 text-2xl font-black">Ingresar</h1>
         </div>
         <p className="mt-4 text-sm leading-6 text-slate-600">
           CanchaPro es una herramienta piloto para gestionar reservas, cancelaciones, mensajes operativos e indicadores estimados de complejos deportivos.
