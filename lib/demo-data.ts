@@ -4,7 +4,9 @@ import { addDays, generateId, startOfWeek, toInputDate } from "@/lib/utils";
 export const storageKey = "canchapro-next-mvp-state-v1";
 const OTTANTUNO_COMPLEX_ID = "069ab75d-b488-4f2a-ba27-d2540643a912";
 const OTTANTUNO_DEMO_START_DATE = "2026-06-06";
-const OTTANTUNO_DEMO_CUTOFF_DATE = "2026-06-22";
+const DEMO_CUTOFF_DATE = "2026-06-23";
+const DEMO_CUTOFF_TIME = "19:00";
+const OTTANTUNO_DEMO_CUTOFF_DATE = DEMO_CUTOFF_DATE;
 const OTTANTUNO_DEMO_FUTURE_START_DATE = "2026-06-23";
 const OTTANTUNO_DEMO_FUTURE_END_DATE = "2026-06-29";
 const DEMO_NORTE_COMPLEX_ID = "6610a6f9-d586-4b00-a8d5-c8ddae585f8b";
@@ -12,7 +14,7 @@ const DEMO_NORTE_RESALE_DATE = "2026-06-20";
 const DEMO_NORTE_RESALE_TIME = "20:00";
 const DEMO_NORTE_RESALE_REASON = "El cliente aviso que no llega a completar equipo";
 const LP_SPORTS_DEMO_START_DATE = "2026-06-17";
-const LP_SPORTS_DEMO_CUTOFF_DATE = "2026-06-22";
+const LP_SPORTS_DEMO_CUTOFF_DATE = DEMO_CUTOFF_DATE;
 
 export const costLabels: Record<keyof FixedCosts, string> = {
   electricity: "Luz",
@@ -196,11 +198,11 @@ function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
     ottantunoOccasional("2026-06-07", "18:00", courts[0].id, "Andres Molina", "confirmed", true),
     ottantunoOccasional("2026-06-07", "18:00", courts[1].id, "Manuel Quiroga", "confirmed", true),
     ottantunoOccasional("2026-06-07", "19:00", courts[0].id, "Bruno Sampedro", "confirmed", true),
-    ottantunoOccasional("2026-06-07", "19:00", courts[1].id, "Patricio Silva", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "23:00", courts[0].id, "Patricio Silva", "confirmed", true),
     ottantunoOccasional("2026-06-07", "20:00", courts[0].id, "Facundo Miranda", "confirmed", true),
     ottantunoCancellation("2026-06-07", "20:00", courts[1].id, "Grupo de Joaquin", "Cancelan por mal clima", false),
     ottantunoOccasional("2026-06-07", "21:00", courts[0].id, "Gaston Arce", "confirmed", true),
-    ottantunoOccasional("2026-06-07", "21:00", courts[1].id, "Rafael Mendez", "confirmed", true),
+    ottantunoOccasional("2026-06-07", "22:00", courts[1].id, "Rafael Mendez", "confirmed", true),
     ottantunoOccasional("2026-06-07", "22:00", courts[0].id, "Ignacio Herrera", "confirmed", true),
     ottantunoOccasional("2026-06-07", "23:00", courts[1].id, "Diego Farias", "confirmed", true),
 
@@ -209,7 +211,7 @@ function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
     ottantunoOccasional("2026-06-08", "20:00", courts[1].id, "Pedro Gimenez", "confirmed", true),
     ottantunoOccasional("2026-06-09", "19:00", courts[1].id, "Emiliano Torres", "confirmed", true),
     ottantunoOccasional("2026-06-09", "20:00", courts[0].id, "Federico Ruiz", "confirmed", true),
-    ottantunoOccasional("2026-06-09", "22:00", courts[0].id, "Cristian Acosta", "confirmed", true),
+    ottantunoOccasional("2026-06-09", "23:00", courts[1].id, "Cristian Acosta", "confirmed", true),
     ottantunoOccasional("2026-06-10", "20:00", courts[0].id, "Mateo Silva", "confirmed", true),
     ottantunoOccasional("2026-06-10", "19:00", courts[1].id, "Ezequiel Ponce", "confirmed", true),
     ottantunoOccasional("2026-06-10", "21:00", courts[1].id, "Gonzalo Arias", "confirmed", true),
@@ -217,7 +219,7 @@ function ottantunoOccasionalReservations(weekStart: Date, courts: Court[]) {
     ottantunoOccasional("2026-06-10", "18:00", courts[0].id, "Benjamin Aguirre", "confirmed", true, "Recuperado por reventa"),
     ottantunoCancellation("2026-06-12", "22:00", courts[1].id, "Hernan Bustos", "Cancelan por falta de jugadores", false),
     ottantunoOccasional("2026-06-11", "19:00", courts[0].id, "Agustin Salas", "confirmed", true),
-    ottantunoOccasional("2026-06-11", "21:00", courts[1].id, "Matias Rios", "confirmed", true),
+    ottantunoOccasional("2026-06-11", "23:00", courts[1].id, "Matias Rios", "confirmed", true),
     ottantunoOccasional("2026-06-12", "19:00", courts[0].id, "Marcos Cabrera", "confirmed", true),
     ottantunoOccasional("2026-06-12", "20:00", courts[0].id, "Tomas Cabrera", "confirmed", true),
     ottantunoOccasional("2026-06-13", "19:00", courts[1].id, "Luciano Vega", "confirmed", true),
@@ -327,7 +329,7 @@ function ottantunoOccasional(date: string, time: string, courtId: string, custom
 
 function ottantunoCancellation(date: string, time: string, courtId: string, customerName: string, reason: string, recovered: boolean): Reservation {
   const cancelledAt = new Date(`${date}T${time}:00`);
-  cancelledAt.setHours(cancelledAt.getHours() - (date > OTTANTUNO_DEMO_CUTOFF_DATE ? 48 : 6));
+  cancelledAt.setHours(cancelledAt.getHours() - (isFutureDemoSlot(date, time) ? 48 : 6));
   return {
     id: stableId("ottantuno-cancellation", date, time, courtId, reason),
     date,
@@ -341,7 +343,7 @@ function ottantunoCancellation(date: string, time: string, courtId: string, cust
     notes: recovered ? `${reason}. Recuperado por reventa.` : reason,
     durationMinutes: 60,
     cancellationReason: recovered ? `${reason}. Recuperado por reventa.` : reason,
-    cancellationLastMinute: date <= OTTANTUNO_DEMO_CUTOFF_DATE,
+    cancellationLastMinute: isHistoricalDemoSlot(date, time),
     cancelledAt: cancelledAt.toISOString(),
     paid: false,
     createdAt: new Date().toISOString()
@@ -357,6 +359,14 @@ function recurringDatesUntil(startDate: string, endDate: string) {
     cursor = addDays(cursor, 7);
   }
   return dates;
+}
+
+function isHistoricalDemoSlot(date: string, time: string) {
+  return date < DEMO_CUTOFF_DATE || (date === DEMO_CUTOFF_DATE && time <= DEMO_CUTOFF_TIME);
+}
+
+function isFutureDemoSlot(date: string, time: string) {
+  return date > DEMO_CUTOFF_DATE || (date === DEMO_CUTOFF_DATE && time > DEMO_CUTOFF_TIME);
 }
 
 function stableId(prefix: string, date: string, time: string, courtId: string, label: string) {
@@ -377,7 +387,7 @@ function normalizeOttantunoTemporalStates(reservations: Reservation[]) {
 
     if (reservation.type === "fixed") {
       const activeDates = recurringDatesUntil(reservation.date, OTTANTUNO_DEMO_FUTURE_END_DATE);
-      const confirmedDates = activeDates.filter((date) => date <= OTTANTUNO_DEMO_CUTOFF_DATE);
+      const confirmedDates = activeDates.filter((date) => isHistoricalDemoSlot(date, reservation.time));
       const paidDates = reservation.price > 0 ? confirmedDates : undefined;
       return {
         ...reservation,
@@ -389,7 +399,7 @@ function normalizeOttantunoTemporalStates(reservations: Reservation[]) {
       };
     }
 
-    if (reservation.date >= OTTANTUNO_DEMO_START_DATE && reservation.date <= OTTANTUNO_DEMO_CUTOFF_DATE) {
+    if (reservation.date >= OTTANTUNO_DEMO_START_DATE && isHistoricalDemoSlot(reservation.date, reservation.time)) {
       return {
         ...reservation,
         status: "confirmed" as const,
@@ -400,7 +410,7 @@ function normalizeOttantunoTemporalStates(reservations: Reservation[]) {
       };
     }
 
-    if (reservation.date >= OTTANTUNO_DEMO_FUTURE_START_DATE && reservation.date <= OTTANTUNO_DEMO_FUTURE_END_DATE) {
+    if (isFutureDemoSlot(reservation.date, reservation.time) && reservation.date <= OTTANTUNO_DEMO_FUTURE_END_DATE) {
       return {
         ...reservation,
         status: "pending" as const,
@@ -443,7 +453,7 @@ function normalizeOttantunoReservationForPartIII(reservation: Reservation): Rese
 
   if (reservation.type === "fixed") {
     const activeDates = recurringDatesUntil(reservation.date, OTTANTUNO_DEMO_FUTURE_END_DATE);
-    const confirmedDates = activeDates.filter((date) => date <= OTTANTUNO_DEMO_CUTOFF_DATE);
+    const confirmedDates = activeDates.filter((date) => isHistoricalDemoSlot(date, reservation.time));
     const paidDates = reservation.price > 0 ? confirmedDates : [];
     return {
       ...reservation,
@@ -456,7 +466,7 @@ function normalizeOttantunoReservationForPartIII(reservation: Reservation): Rese
     };
   }
 
-  if (reservation.date >= OTTANTUNO_DEMO_START_DATE && reservation.date <= OTTANTUNO_DEMO_CUTOFF_DATE) {
+  if (reservation.date >= OTTANTUNO_DEMO_START_DATE && isHistoricalDemoSlot(reservation.date, reservation.time)) {
     return {
       ...reservation,
       status: "confirmed",
@@ -468,7 +478,7 @@ function normalizeOttantunoReservationForPartIII(reservation: Reservation): Rese
     };
   }
 
-  if (reservation.date >= OTTANTUNO_DEMO_FUTURE_START_DATE && reservation.date <= OTTANTUNO_DEMO_FUTURE_END_DATE) {
+  if (isFutureDemoSlot(reservation.date, reservation.time) && reservation.date <= OTTANTUNO_DEMO_FUTURE_END_DATE) {
     return {
       ...reservation,
       status: "pending",
@@ -504,13 +514,13 @@ function inspectOttantunoDemoConsistency(reservations: Reservation[]): void {
     reservation.status !== "cancelled" &&
     reservation.type !== "fixed" &&
     reservation.date >= OTTANTUNO_DEMO_START_DATE &&
-    reservation.date <= OTTANTUNO_DEMO_CUTOFF_DATE &&
+    isHistoricalDemoSlot(reservation.date, reservation.time) &&
     reservation.status === "pending"
   ).length;
   const activeFutureConfirmed = reservations.filter((reservation) =>
     reservation.status !== "cancelled" &&
     reservation.type !== "fixed" &&
-    reservation.date >= OTTANTUNO_DEMO_FUTURE_START_DATE &&
+    isFutureDemoSlot(reservation.date, reservation.time) &&
     reservation.date <= OTTANTUNO_DEMO_FUTURE_END_DATE &&
     (reservation.status === "confirmed" || reservation.paid)
   ).length;
@@ -590,11 +600,11 @@ function createLpSportsPublicSlotIds(courts: Court[]) {
 }
 
 function createLpSportsReservations(courts: Court[]) {
-  return dedupeByIdAndSlot([
+  return normalizeLpSportsTemporalStates(dedupeByIdAndSlot([
     ...lpSportsInstitutionalBlocks(courts),
     ...lpSportsPaidFixedTurns(courts),
     ...lpSportsOccasionalReservations(courts)
-  ]);
+  ]));
 }
 
 function lpSportsInstitutionalBlocks(courts: Court[]) {
@@ -612,7 +622,7 @@ function lpSportsInstitutionalBlocks(courts: Court[]) {
       status: "pending",
       notes: "Bloqueo institucional, no alquiler de cancha",
       durationMinutes: 60,
-      confirmedDates: recurringDatesUntil(date, LP_SPORTS_DEMO_CUTOFF_DATE),
+      confirmedDates: recurringDatesUntil(date, LP_SPORTS_DEMO_CUTOFF_DATE).filter((activeDate) => isHistoricalDemoSlot(activeDate, time)),
       paidDates: [],
       createdAt: new Date().toISOString()
     });
@@ -650,7 +660,7 @@ function lpSportsPaidFixedTurns(courts: Court[]) {
   ];
 
   return fixedTurns.map(([date, time, courtId, customerName]) => {
-    const confirmedDates = recurringDatesUntil(date, LP_SPORTS_DEMO_CUTOFF_DATE);
+    const confirmedDates = recurringDatesUntil(date, LP_SPORTS_DEMO_CUTOFF_DATE).filter((activeDate) => isHistoricalDemoSlot(activeDate, time));
     return {
       id: stableId("lp-fixed-paid", date, time, courtId, customerName),
       date,
@@ -667,6 +677,68 @@ function lpSportsPaidFixedTurns(courts: Court[]) {
       paidDates: confirmedDates,
       seriesEndDate: "2026-07-31",
       createdAt: new Date().toISOString()
+    };
+  });
+}
+
+function normalizeLpSportsTemporalStates(reservations: Reservation[]) {
+  return reservations.map((reservation) => {
+    if (reservation.status === "cancelled") {
+      return {
+        ...reservation,
+        status: "cancelled" as const,
+        paid: false,
+        paidAt: undefined,
+        paidDates: [],
+        confirmedDates: [],
+        cancellationReason: reservation.cancellationReason || reservation.notes || "Cancelacion registrada",
+        cancellationLastMinute: reservation.cancellationLastMinute ?? isHistoricalDemoSlot(reservation.date, reservation.time)
+      };
+    }
+
+    if (reservation.type === "fixed") {
+      const activeDates = recurringDatesUntil(reservation.date, "2026-07-31");
+      const confirmedDates = activeDates.filter((date) => isHistoricalDemoSlot(date, reservation.time));
+      return {
+        ...reservation,
+        status: "pending" as const,
+        paid: false,
+        paidAt: undefined,
+        confirmedDates,
+        paidDates: reservation.price > 0 ? confirmedDates : [],
+        cancelledDates: reservation.cancelledDates ?? []
+      };
+    }
+
+    if (reservation.date >= LP_SPORTS_DEMO_START_DATE && isHistoricalDemoSlot(reservation.date, reservation.time)) {
+      return {
+        ...reservation,
+        status: "confirmed" as const,
+        paid: reservation.price > 0,
+        paidAt: reservation.price > 0 ? reservation.paidAt ?? new Date(`${reservation.date}T${reservation.time}:00`).toISOString() : undefined,
+        confirmedDates: [reservation.date],
+        paidDates: reservation.price > 0 ? [reservation.date] : [],
+        cancelledDates: reservation.cancelledDates ?? []
+      };
+    }
+
+    if (isFutureDemoSlot(reservation.date, reservation.time)) {
+      return {
+        ...reservation,
+        status: "pending" as const,
+        paid: false,
+        paidAt: undefined,
+        confirmedDates: [],
+        paidDates: [],
+        cancelledDates: reservation.cancelledDates ?? []
+      };
+    }
+
+    return {
+      ...reservation,
+      cancelledDates: reservation.cancelledDates ?? [],
+      confirmedDates: reservation.confirmedDates ?? [],
+      paidDates: reservation.paidDates ?? []
     };
   });
 }
@@ -757,7 +829,7 @@ function lpOccasional(date: string, time: string, courtId: string, customerName:
 
 function lpCancellation(date: string, time: string, courtId: string, customerName: string, reason: string, lastMinute: boolean): Reservation {
   const cancelledAt = new Date(`${date}T${time}:00`);
-  cancelledAt.setHours(cancelledAt.getHours() - (date > LP_SPORTS_DEMO_CUTOFF_DATE ? 24 : 5));
+  cancelledAt.setHours(cancelledAt.getHours() - (isFutureDemoSlot(date, time) ? 24 : 5));
   return {
     id: stableId("lp-cancellation", date, time, courtId, reason),
     date,
